@@ -13,7 +13,6 @@ Homepage: https://krzysztofjankowski.com/floppinux/
 ## EPUB Manual
 Read only the manual:
 
-- This repo https://github.com/w84death/floppinux/tree/main/manual
 - Mirror https://archive.org/details/floppinux-manual/
 
 ## UPDATE 0.2.2

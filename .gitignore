@@ -1,7 +1,0 @@
-linux/
-busybox/
-i486-linux-musl-cross*
-filesystem/
-bzImage
-floppinux.img
-rootfs.cpio.xz

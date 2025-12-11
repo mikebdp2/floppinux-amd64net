@@ -115,6 +115,7 @@ Add additonal config settings on top of it:
 ```bash
 make ARCH=x86 menuconfig
 ```
+Important: Do not uncheck anything in options unless specified so. Some of those options are important. You can uncheck but on your own risk.
 
 From menus choose those options:
 

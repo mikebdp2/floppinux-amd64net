@@ -98,7 +98,7 @@ sudo pacman -S qemu-full
 Get the sources for the latest compatible kernel 6.14.11:
 
 ```bash
-git clone --depth=1 --branch v6.14.y https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+git clone --depth=1 --branch v6.14.11 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 cd linux
 ```
 

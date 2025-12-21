@@ -31,7 +31,7 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 
 - **Latest Release:** [FLOPPINUX - Floppy Image (1.44MB)](floppinux.img)
 - **Source Code:** [GitHub Repository](https://github.com/w84death/floppinux)
-- **Workshop/tutorial:** [MD](floppinux.md) [PDF](floppinux.pdf) [Online HTML](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)
+- **Workshop/tutorial:** [MD](floppinux.md) [ePub](floppinux.epub) [Online HTML](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)
 <!--- **Archive Mirror:** [Internet Archive](https://archive.org/details/floppinux_0.3.1)-->
 
 ## Articles & Tutorials

@@ -32,7 +32,7 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 - **Latest Release:** [FLOPPINUX - Floppy Image (1.44MB)](floppinux.img)
 - **Source Code:** [GitHub Repository](https://github.com/w84death/floppinux)
 - **Workshop/tutorial:** [MD](floppinux.md) [PDF](floppinux.pdf) [Online HTML](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)
-- **Archive Mirror:** [Internet Archive](https://archive.org/details/floppinux_0.3.1)
+<!--- **Archive Mirror:** [Internet Archive](https://archive.org/details/floppinux_0.3.1)-->
 
 ## Articles & Tutorials
 
@@ -44,8 +44,9 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 
 ## Community & Discussion
 
-- **[Can Modern Linux Fit on a 1.44mb Floppy? by Action Retro
-](https://www.youtube.com/watch?v=SiHZbnFrHOY)**
+- **[Can Modern Linux Fit on a 1.44mb Floppy?
+](https://www.youtube.com/watch?v=SiHZbnFrHOY)**  by Action Retro
+- **[Alternative DMF Floppy Layout](dmf-layout.md)** by [dscp46](https://github.com/dscp46)
 - [Hacker News Discussion](https://news.ycombinator.com/item?id=27247612)
 - [HackADay Feature](https://hackaday.com/2021/05/24/running-modern-linux-from-a-single-floppy-disk/)
 - [Hackster.io Article](https://www.hackster.io/news/floppinux-places-a-compact-form-of-linux-on-a-floppy-disk-3f5fdab432b0)

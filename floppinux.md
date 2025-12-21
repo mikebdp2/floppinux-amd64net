@@ -474,6 +474,21 @@ sudo dd if=floppinux.img of=/dev/XXX bs=512 conv=notrunc,sync,fsync oflag=direct
 
 After 5 minutes I got freshly burned floppy.
 
+## Debugging
+
+If you need more verbose logging use those syslinux.cfg settings.
+
+```
+cat >> syslinux.cfg << EOF
+DEFAULT floppinux
+LABEL floppinux
+SAY [ BOOTING FLOPPINUX VERSION 0.3.1 DEBUG ]
+KERNEL bzImage
+INITRD rootfs.cpio.xz
+APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 ignore_loglevel earlyprintk=tty0 loglevel=8 tsc=unstable
+EOF
+```
+
 ## Summary
 
 - FLOPPINUX: **0.3.1** (December 2025)

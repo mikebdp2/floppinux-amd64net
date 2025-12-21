@@ -4,7 +4,7 @@
 
 > FLOPPINUX is a complete Linux distribution that fits on a single 1.44MB floppy disk. Think of it as Linux From Scratch but for making single floppy distribution. It boots directly into a working Linux terminal with persistent storage and essential tools.
 
-## 🛠️ FLOPPINUX 2025 Workshop (v0.3.0) 🛠️
+## 🛠️ FLOPPINUX 2025 Workshop (v0.3.1) 🛠️
 
 **[Complete tutorial to build your own FLOPPINUX from scratch](floppinux.md)**
 
@@ -32,11 +32,11 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 - **Latest Release:** [FLOPPINUX - Floppy Image (1.44MB)](floppinux.img)
 - **Source Code:** [GitHub Repository](https://github.com/w84death/floppinux)
 - **Workshop/tutorial:** [MD](floppinux.md) [PDF](floppinux.pdf) [Online HTML](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)
-- **Archive Mirror:** [Internet Archive](https://archive.org/details/floppinux_0.3.0)
+- **Archive Mirror:** [Internet Archive](https://archive.org/details/floppinux_0.3.1)
 
 ## Articles & Tutorials
 
-- **[FLOPPINUX 2025 Update (v0.3.0)](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)** 🆕
+- **[FLOPPINUX 2025 Update (v0.3.1)](https://krzysztofjankowski.com/floppinux/floppinux-2025.html)** 🆕
 - [Original FLOPPINUX Tutorial (2021)](https://krzysztofjankowski.com/floppinux/floppinux-an-embedded-linux-on-a-single-floppy.html)
 - [Creating Sample Applications for FLOPPINUX](https://krzysztofjankowski.com/floppinux/sample-application.html)
 - [Building 32-bit FLOPPINUX on 64-bit Systems](https://krzysztofjankowski.com/floppinux/how-to-build-32-bit-floppinux-on-a-64-bit-os.html)
@@ -44,6 +44,8 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 
 ## Community & Discussion
 
+- **[Can Modern Linux Fit on a 1.44mb Floppy? by Action Retro
+](https://www.youtube.com/watch?v=SiHZbnFrHOY)**
 - [Hacker News Discussion](https://news.ycombinator.com/item?id=27247612)
 - [HackADay Feature](https://hackaday.com/2021/05/24/running-modern-linux-from-a-single-floppy-disk/)
 - [Hackster.io Article](https://www.hackster.io/news/floppinux-places-a-compact-form-of-linux-on-a-floppy-disk-3f5fdab432b0)

@@ -12,6 +12,11 @@ sudo mknod dev/fb0 c 29 0
 sudo chown root:root dev/fb0
 ```
 
+syslinux:
+```
+APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 tsc=unstable video=vesafb:ypan
+```
+
 
 Compile
 ```
@@ -31,6 +36,7 @@ Copy to your FLOPPINUX filesystem
 ```
 cp pixel filesystem/bin/
 ```
+
 
 Run it in QEMU
 ```

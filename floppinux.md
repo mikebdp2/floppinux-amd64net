@@ -1,7 +1,8 @@
 # FLOPPINUX - An Embedded 🐧Linux on a Single 💾Floppy
-## 2025 Edition (v0.3.0)
+## 2025 Edition (v0.3.1)
 
-**October 19, 2025**
+- v0.3.1 - **December 21, 2025**
+- v0.3.0 - **October 19, 2025**
 
 ---
 
@@ -39,8 +40,6 @@ The final distribution is very simple and consists only of minimum of tools and 
 - Support for simple scripting
 - Persistent storage on the floppy to actualy save files (264KB)
 - Works on real hardware and emulation
-
-*\* latest kernel that supports Intel 486 CPUs*
 
 ### Minimum Hardware Requirements:
 
@@ -81,6 +80,7 @@ Cross-compiler:
 ```bash
 wget https://musl.cc/i486-linux-musl-cross.tgz
 tar xvf i486-linux-musl-cross.tgz
+rm i486-linux-musl-cross.tgz
 ```
 
 ### Emulation
@@ -95,7 +95,7 @@ sudo pacman -S qemu-full
 
 ## Kernel
 
-Get the sources for the latest compatible kernel 6.14.11:
+Get the sources for the latest compatible **kernel 6.14.11**:
 
 ```bash
 git clone --depth=1 --branch v6.14.11 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
@@ -119,34 +119,36 @@ Important: Do not uncheck anything in options unless specified so. Some of those
 
 From menus choose those options:
 
+- General Setup
+  - Configure standard kernel features (expert users)
+    - Enable support for printk
+  - Initial RAM filesystem and RAM disk (initramfs/initrd)
+    - Support initial ramdisk/ramfs compressed using XZ and **uncheck everything else**
 - Processor type and features
   - x86 CPU resources control support
   - Processor family
     - 486DX
 - Enable the block layer
-- Device Drivers
-  - Block devices
-    - Normal floppydisk support
-    - RAM block device support (1 partition)
-  - Character devices
-    - Enable TTY
-- General Setup
-  - Configure standard kernel features (expert users)
-    - Enable support for printk
-  - Initial RAM filesystem and RAM disk (initramfs/initrd)
-  - Support initial ramdisk/ramfs compressed using XZ and uncheck everything else
 - Executable file formats
   - Kernel support for ELF binaries
   - Kernel support for scripts starting with #!
+- Device Drivers
+  - Block devices
+    - Normal floppydisk support
+    - RAM block device support
+      - Default number of RAM disk: 1
+  - Character devices
+    - Enable TTY
 - File systems
   - DOS/FAT/EXFAT/NT Filesystems
     - MSDOS fs support
   - Pseudo filesystems
+    - /proc file system support
     - sysfs file system support
   - Native language support
     - Codepage 437
 - Library routines
-  - XZ decompression and uncheck everything else
+  - XZ decompression and **uncheck everything under it**
 
 Exit configuration (yes, save settings to .config).
 
@@ -160,8 +162,8 @@ make ARCH=x86 bzImage -j$(nproc)
 
 This will take a while depending on the speed of your CPU. In the end the kernel will be created in **arch/x86/boot/** as **bzImage** file.
 
-Move kernel to our main directory:
-
+Move kernel to our **main directory** and **go back to it**:
+ 
 ```bash
 mv arch/x86/boot/bzImage ../
 cd ..
@@ -178,6 +180,7 @@ Get the **1.36.1** version from busybox.net or Github mirror. Download the file,
 ```bash
 wget https://github.com/mirror/busybox/archive/refs/tags/1_36_1.tar.gz
 tar xzvf 1_36_1.tar.gz
+rm 1_36_1.tar.gz
 cd busybox-1_36_1/
 ```
 
@@ -189,13 +192,13 @@ make ARCH=x86 allnoconfig
 
 > You may skip this following fix if you are building on Debian/Fedora
 
-Fix for ArchLinux based distributions:
+Fix for **Arch Linux based distributions**:
 
 ```bash
 sed -i 's/main() {}/int main() {}/' scripts/kconfig/lxdialog/check-lxdialog.sh
 ```
 
-> Now the fun part. You need to choose what tools you want. Each menu entry will show how much more KB will be taken if you choose it. So choose it wisely :) For the first time use my selection.
+> Now the fun part. You need to **choose what tools you want**. Each menu entry will show how much more KB will be taken if you choose it. So choose it wisely :) For the first time use my selection.
 
 Run the configurator:
 
@@ -203,41 +206,46 @@ Run the configurator:
 make ARCH=x86 menuconfig
 ```
 
-Choose those:
+Choose the following options. Remember to **do not uncheck** anything if not stated here.
 
 - Settings
-  - Build static binary (no shared libs)
   - Support files
     - 2GB
+  - Build static binary (no shared libs)
 - Coreutils
   - cat
   - cp
   - df
   - echo
   - ls
+  - mkdir
   - mv
   - rm
   - sync
   - test
+    - test as [
+    - test as [[
 - Console Utilities
   - clear
 - Editors
   - vi
 - Init Utilities
   - init
-  - uncheck everything else (inside init)
+    - **uncheck** everything else (inside init: keep [*] only on init in this page)
 - Linux System Utilities
   - mdev
-  - mount (just -o flag, rest off)
+  - mount
+    - Support lots of -o flags
+    - **uncheck** evrything else
   - umount
+- Miscellaneous Utilities
+  - **uncheck** readahead
 - Shells
   - Choose alias as (ash)
   - ash
   - Optimize for size instead of speed
   - Alias support
-  - Help support
-- Miscellaneous
-  - uncheck readahead
+  <!--- Help support-->
 
 Now exit with save config.
 
@@ -248,9 +256,9 @@ Now exit with save config.
 Setup paths:
 
 ```bash
-sed -i "s|.*CONFIG_CROSS_COMPILER_PREFIX.*|CONFIG_CROSS_COMPILER_PREFIX=\"${BASE}i486-linux-musl-cross/bin/i486-linux-musl-\"|" .config
+sed -i "s|.*CONFIG_CROSS_COMPILER_PREFIX.*|CONFIG_CROSS_COMPILER_PREFIX=\"${BASE}/i486-linux-musl-cross/bin/i486-linux-musl-\"|" .config
 
-sed -i "s|.*CONFIG_SYSROOT.*|CONFIG_SYSROOT=\"${BASE}i486-linux-musl-cross\"|" .config
+sed -i "s|.*CONFIG_SYSROOT.*|CONFIG_SYSROOT=\"${BASE}/i486-linux-musl-cross\"|" .config
 
 sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=-I$BASE/i486-linux-musl-cross/include|" .config
 
@@ -259,13 +267,15 @@ sed -i "s|.*CONFIG_EXTRA_LDFLAGS.*|CONFIG_EXTRA_LDFLAGS=-L$BASE/i486-linux-musl-
 
 ### Compile BusyBox
 
-Build tools and create base filesystem ("install"):
+Build tools and create base filesystem ("install"). It will ask for options, just **press enter** for default for all of them.
 
 ```bash
 make ARCH=x86 -j$(nproc) && make ARCH=x86 install
 ```
 
 This will create a filesystem with all the files at **_install/**. Move it to our main directory. I like to rename it to.
+
+Lastly to to that new directory.
 
 ```bash
 mv _install ../filesystem
@@ -299,7 +309,7 @@ EOF
 Or download my welcome file.
 
 ```bash
-wget https://krzysztofjankowski.com/floppinux/downloads/0.3.0/welcome
+wget https://krzysztofjankowski.com/floppinux/downloads/0.3.1/welcome
 ```
 
 It looks like that:
@@ -316,10 +326,10 @@ $ cat welcome
           .___/_________/__//   1440KiB
           '===\_________\=='   3.5"
 
-_______FLOPPINUX_V_0.3.0 __________________________________
+_______FLOPPINUX_V_0.3.1 __________________________________
 _______AN_EMBEDDED_SINGLE_FLOPPY_LINUX_DISTRIBUTION _______
 _______BY_KRZYSZTOF_KRYSTIAN_JANKOWSKI ____________________
-_______2025.10 ____________________________________________
+_______2025.12 ____________________________________________
 ```
 
 > Back to serious stuff. Inittab tells the system what to do in critical states like starting, exiting and restarting. It points to the initialization script rc that is the first thing that our OS will run before dropping into the shell.
@@ -363,7 +373,7 @@ chmod +x etc/init.d/rc
 sudo chown -R root:root .
 ```
 
-Compress this directory into one file:
+Compress this directory into one file. Then go back to working directory.
 
 ```bash
 find . | cpio -H newc -o | xz --check=crc32 --lzma2=dict=512KiB -e > ../rootfs.cpio.xz
@@ -382,7 +392,7 @@ Create booting configuration.
 cat >> syslinux.cfg << EOF
 DEFAULT floppinux
 LABEL floppinux
-SAY [ BOOTING FLOPPINUX VERSION 0.3.0 ]
+SAY [ BOOTING FLOPPINUX VERSION 0.3.1 ]
 KERNEL bzImage
 INITRD rootfs.cpio.xz
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 tsc=unstable
@@ -405,7 +415,7 @@ Hello, FLOPPINUX user!
 EOF
 ```
 
-Filesystem is ready. Final step is to put this all on a floppy!
+Filesystem is ready. Final step is to **put this all on a floppy**!
 
 ## Boot Image
 
@@ -466,45 +476,45 @@ After 5 minutes I got freshly burned floppy.
 
 ## Summary
 
-- FLOPPINUX: 0.3.0
-- Linux Kernel: 6.14.11
-- Busybox: 1.36.1
+- FLOPPINUX: **0.3.1** (December 2025)
+- Linux Kernel: **6.14.11**
+- Busybox: **1.36.1**
 - Image size: 1440KiB / 1.44MiB
-- Kernel size: 868KiB (bzImage)
-- Tools: 138KiB (rootfs.cpio.xz)
-- Free space left (df -h): 264KiB
+- Kernel size: 881KiB (bzImage)
+- Tools: 137KiB (rootfs.cpio.xz)
+- Free space left (df -h): **253KiB**
 
 ### System Tools
 
 #### File & Directory Manipulation
-- cat - display file contents
-- cp - copy files and directories
-- mv - move/rename files and directories
-- rm - remove files and directories
-- ls - list directory contents
+- ```cat``` - display file contents
+- ```cp``` - copy files and directories
+- ```mv``` - move/rename files and directories
+- ```rm``` - remove files and directories
+- ```ls``` - list directory contents
+- ```mkdir``` - creates directory
 
 #### System Information & Management
-- df - display filesystem disk space usage
-- mount - mount filesystems
-- umount - unmount filesystems
-- sync - force write of buffered data to disk
+- ```df -h``` - display filesystem disk space usage
+- ```sync``` - force write of buffered data to disk - use this after any changes to the floppy filesystem
+- ```mount``` - mount filesystems
+- ```umount``` - unmount filesystems
 
 #### Text Processing & Output
-- echo - display text output
-- more - page through text output
+- ```echo``` - display text output
+- ```more``` - page through text output
 
 #### Utilities
-- ln - create links between files
-- clear - clear terminal screen
-- test - evaluate conditional expressions
+- ```clear``` - clear terminal screen
+- ```test``` - evaluate conditional expressions
 
 ### Applications
 
-- vi - text editor
+- ```vi``` - text editor
 
 ## Download
 
-- FLOPPINUX 0.3.0 Floppy Image 1.44MB
+- [FLOPPINUX 0.3.1 Floppy Image 1.44MB](http://krzysztofjankowski.com/floppinux/downloads/0.3.1/floppinux.img)
 
 ---
 
@@ -524,4 +534,4 @@ After 5 minutes I got freshly burned floppy.
 
 **FLOPPINUX - An Embedded Single Floppy Linux Distribution**  
 **By Krzysztof Krystian Jankowski**  
-**2025.10**
+**2025.12**

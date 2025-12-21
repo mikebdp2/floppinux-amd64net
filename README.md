@@ -44,9 +44,16 @@ FLOPPINUX is a fully functional Linux distribution designed to run on minimal ha
 
 ## Community & Discussion
 
+Version 3.0:
+
 - **[Can Modern Linux Fit on a 1.44mb Floppy?
-](https://www.youtube.com/watch?v=SiHZbnFrHOY)**  by Action Retro
+](https://www.youtube.com/watch?v=SiHZbnFrHOY)** by Action Retro
 - **[Alternative DMF Floppy Layout](dmf-layout.md)** by [dscp46](https://github.com/dscp46)
+- [Linux On A Floppy: Still (Just About) Possible
+](https://hackaday.com/2025/12/20/linux-on-a-floppy-still-just-about-possible/) hackaday.com
+- [Someone ran a modern-day Linux distro off a floppy disk, and it looks more fun than it should be](https://www.xda-developers.com/someone-ran-a-modern-day-linux-distro-off-a-floppy-disk-and-it-was-more-fun-than-it-should-be/) xda-developers.com
+
+Version up to 2.1:
 - [Hacker News Discussion](https://news.ycombinator.com/item?id=27247612)
 - [HackADay Feature](https://hackaday.com/2021/05/24/running-modern-linux-from-a-single-floppy-disk/)
 - [Hackster.io Article](https://www.hackster.io/news/floppinux-places-a-compact-form-of-linux-on-a-floppy-disk-3f5fdab432b0)

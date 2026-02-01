@@ -192,7 +192,7 @@ make ARCH=x86 allnoconfig
 
 > You may skip this following fix if you are building on Debian/Fedora
 
-Fix for **Arch Linux based distributions**:
+Fix for **GCC 14+ Linux based distributions** like Arch:
 
 ```bash
 sed -i 's/main() {}/int main() {}/' scripts/kconfig/lxdialog/check-lxdialog.sh

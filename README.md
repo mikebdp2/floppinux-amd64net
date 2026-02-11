@@ -1,12 +1,48 @@
-# FLOPPINUX 💾
+# FLOPPINUX-AMD64NET 💾
 
 **An Embedded 🐧Linux on a Single 💾Floppy**
 
-> FLOPPINUX is a complete Linux distribution that fits on a single 1.44MB floppy disk. Think of it as Linux From Scratch but for making single floppy distribution. It boots directly into a working Linux terminal with persistent storage and essential tools.
+## 🛠️ FLOPPINUX 2026 Workshop (v0.3.1-amd64net) 🛠️
 
-## 🛠️ FLOPPINUX 2025 Workshop (v0.3.1) 🛠️
+**[Complete tutorial to build your own FLOPPINUX-AMD64NET from scratch](floppinux.md)**
 
-**[Complete tutorial to build your own FLOPPINUX from scratch](floppinux.md)**
+**This is a modified floppinux "amd64net" distribution. It is primarily aimed for embedding as a virtual floppy into the opensource coreboot BIOS of supported AMD PCs ( more information here - http://dangerousprototypes.com/docs/Lenovo_G505S_hacking ), however it may be used for other needs as well. Main features:**
+
+- Architecture changes
+  - 2.88 MB floppy image for AMD PCs of x86_64 architecture (seems to work fine in VirtualBox too), with many AMD-specific features enabled
+  - Intel CPU support is disabled to save space, however you may re-enable it at cost of something else and use this distro on your Intel
+  - Microcode loading is disabled because thanks to opensource coreboot BIOS I do not need this space-taking feature at my Linux kernel
+  - Physical floppy drive support (ISA-style DMA support aka ISA_DMA_API) is disabled in Linux kernel too because I needed some extra space
+  - Had to disable printk in order to win even more space, to re-enable it for debugging you will have to temporarily disable the other features
+- Device support
+  - Ethernet
+    - Qualcomm/Atheros AR8161/AR8162/QCA8171/QCA8172 - found in coreboot-supported AMD Lenovo G505S - the most powerful no-ME/no-PSP coreboot laptop
+    - Realtek RTL8111/RTL8168/RTL8169/RTL8101/RTL8125 - found in coreboot-supported ASUS A88XM-E & AM1I-A desktops and dirt cheap PCIe Ethernet cards
+  - WiFi
+    - Atheros ath9k family of PCIe WiFi adapters, such as AR9462 that works on 100% opensource without any firmware
+    - Atheros ath9k_htc family of USB WiFi adapters, such as AR9271 that seems to need a firmware for unknown reasons
+  - USB
+    - EHCI (USB 2.0) / OHCI (USB 1.1) support, essential for using the USB WiFi adapters as well as the input devices
+    - Please note that it is possible to enable the USB flash drive support / filesystem support at cost of something else
+  - ACPI:
+    - Had to enable it in order for AR9271 USB WiFi to work on coreboot-supported AMD Lenovo G505S laptop, at cost of disabling printk messages
+  - SMP for multiple CPUs / CPU cores support
+  - NUMA for a higher performance on systems like ASUS KGPE-D16 - a coreboot-supported AMD-no-PSP server with two Opteron 6386SE 16-core CPUs and 256GB/512GB RAM
+  - Pin controllers, especially AMD GPIO pin control
+- Software additions
+  - wpa_supplicant and wpa_cli
+    - This standalone software is essential for connecting to WiFi networks with the supported WiFi adapters
+  - Dropbear ssh and scp
+    - This standalone software is essential for connecting to other PCs over SSH protocol and therefore providing a "thin client" functionality
+  - Kirc IRC client
+    - This standalone software is essential for connecting to IRC servers and communicating with other people
+    - It did not fit to a floppy, but - since it is only usable if we have network - we will be wgetting it!
+
+Also, I have fixed many bugs like a frozen ping _(had to enable timer-related features)_ and Ctrl+C/Ctrl+Z interrupts _(changes related to TTY and job control)_.
+
+**The instructions above are originally provided by @w84death and have been heavily modded by me (Mike Banon) for this "amd64net" distribution.**
+
+> FLOPPINUX is a complete Linux distribution that fits on a single 2.88MB floppy disk. Think of it as Linux From Scratch but for making single floppy distribution. It boots directly into a working Linux terminal with persistent storage and essential tools.
 
 ## What is FLOPPINUX?
 

@@ -7,7 +7,7 @@
 
 ---
 
-**This is a modified floppinux "amd64net" distribution. It is primarily aimed for embedding as a virtual floppy into the opensource coreboot BIOS of supported AMD PCs ( more information here - http://dangerousprototypes.com/docs/Lenovo_G505S_hacking ), however it may be used for other needs as well. Main features:
+**This is a modified floppinux "amd64net" distribution. It is primarily aimed for embedding as a virtual floppy into the opensource coreboot BIOS of supported AMD PCs ( more information here - http://dangerousprototypes.com/docs/Lenovo_G505S_hacking ), however it may be used for other needs as well. Main features:**
 
 - Architecture changes
   - 2.88 MB floppy image for AMD PCs of x86_64 architecture (seems to work fine in VirtualBox too), with many AMD-specific features enabled

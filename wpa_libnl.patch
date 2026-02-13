@@ -6,7 +6,7 @@ index a03d4a0..1947986 100644
  else
    ifdef CONFIG_LIBNL_TINY
      DRV_LIBS += -lnl-tiny
-+    DRV_CFLAGS += 
++    DRV_CFLAGS += $(shell $(PKG_CONFIG) --cflags libnl-tiny)
    else
      ifndef CONFIG_OSX
        DRV_LIBS += -lnl

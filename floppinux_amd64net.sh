@@ -58,6 +58,27 @@ commands_check () {
     fi
 }
 
+# Checks if a file '$1' exists.
+file_exists () {
+    if [ ! -f "$1" ] ; then
+        printf "\n${byellow}WARNING${bend}: file ${bold}$1${bend} is not found !\n"
+        return 1
+    else
+        return 0
+    fi
+}
+
+# Force removes a file '$2' and then moves a file '$1' to '$2'.
+mover () {
+    if file_exists "$1" ; then
+        rm -f "$2"
+        mv "$1" "$2"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Downloads a file '$1' from a link '$2' using the options '$3' and checks if this was successful.
 wgetter () {
     rm -f "$1"
@@ -84,19 +105,18 @@ wgetter () {
 
 # MUSL toolchain
 musl_get () {
-	printf "MUSL: remove the old directory if it exists\n"
-	rm -rf ./x86_64-linux-musl-cross/
+    printf "MUSL: remove the old directory if it exists\n"
+    rm -rf ./x86_64-linux-musl-cross/
     printf "MUSL: wget the archive with a toolchain\n"
-    rm -f ./x86_64-linux-musl-cross.tgz
     wgetter "./x86_64-linux-musl-cross.tgz" "https://musl.cc/x86_64-linux-musl-cross.tgz"
     tar -xvf ./x86_64-linux-musl-cross.tgz
 }
 
 # Linux kernel
 linux_build () {
-	printf "LINUX: remove the old directory if it exists\n"
-	rm -rf ./linux/
-    git clone --depth=1 --branch v6.18.9 "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git"
+    printf "LINUX: remove the old directory if it exists\n"
+    rm -rf ./linux/
+    git clone --depth=1 --branch v6.18.10 "https://github.com/gregkh/linux.git"
     cd ./linux/
     printf "LINUX: upgrade the source code to -Oz optimization level\n"
     rm -rf ./../temp.git/
@@ -113,45 +133,14 @@ linux_build () {
     git add .
     git commit -m "LINUX: upgrade the source code to -Oz optimization level"
     printf "LINUX: patch to disable the MICROCODE and NET_SELFTESTS configs\n"
-    rm -f  ./linux.patch
-    cat >> ./linux.patch << EOF
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index a3700766a..7da1171b0 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1318,7 +1318,7 @@ config X86_REBOOTFIXUPS
- 	  Say N otherwise.
- 
- config MICROCODE
--	def_bool y
-+	def_bool n
- 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
- 	select CRYPTO_LIB_SHA256 if CPU_SUP_AMD
- 
-diff --git a/net/Kconfig b/net/Kconfig
-index 1d3f757d4..1560517af 100644
---- a/net/Kconfig
-+++ b/net/Kconfig
-@@ -476,8 +476,8 @@ config NET_IEEE8021Q_HELPERS
- 	bool
- 
- config NET_SELFTESTS
--	def_tristate PHYLIB
--	depends on PHYLIB && INET
-+	bool
-+	default n
- 
- config NET_SOCK_MSG
- 	bool
-EOF
+    wgetter "./linux.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux.patch"
     patch -p1 < ./linux.patch
     git add ./arch/x86/Kconfig
     git add ./net/Kconfig
     git commit -m "LINUX: disable the MICROCODE and NET_SELFTESTS configs"
-    rm -f ./.config
     printf "LINUX: wget a .config file to configure the source code\n"
     wgetter "./linux.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux.cfg"
-    mv ./linux.cfg ./.config
+    mover "./linux.cfg" "./.config"
     make ARCH="x86_64" clean
     make ARCH="x86_64" bzImage -j$(nproc)
     ls -al ./arch/x86_64/boot/bzImage
@@ -161,8 +150,8 @@ EOF
 
 # Dropbear SSH client and SCP utility
 dropbear_build () {
-	printf "DROPBEAR: remove the old directory if it exists\n"
-	rm -rf ./dropbear/
+    printf "DROPBEAR: remove the old directory if it exists\n"
+    rm -rf ./dropbear/
     printf "DROPBEAR: git clone a repository\n"
     git clone --depth=1 --branch DROPBEAR_2025.89 "https://github.com/mkj/dropbear.git"
     cd ./dropbear/
@@ -186,7 +175,7 @@ dropbear_build () {
 
 # libnl-tiny library needed for wpa_supplicant
 libnl_build () {
-	rm -rf ./libnl-tiny/
+    rm -rf ./libnl-tiny/
     printf "LIBNL-TINY: git clone a repository\n"
     git clone --depth=1 "https://github.com/openwrt/libnl-tiny.git"
     cd ./libnl-tiny/
@@ -228,23 +217,22 @@ libnl_build () {
 
 # wpa_supplicant daemon and wpa_cli utility for connecting to WiFi networks
 wpa_build () {
-	rm -rf ./wpa_supplicant/
+    rm -rf ./wpa_supplicant/
     printf "WPA_SUPPLICANT: git clone a repository\n"
-    git clone --depth=1 --branch hostap_2_11 "https://git.w1.fi/hostap.git"
+    git clone --depth=1 --branch hostap_2_11 "https://github.com/mikebdp2/hostap.git"
     cd ./hostap/
     printf "WPA_SUPPLICANT: patch to fix linking with a libnl-tiny library\n"
-    wgetter "./wpa_libs.patch" "https://git.w1.fi/cgit/hostap/patch/?id=c13c7b6a1db3361dccc146719f0c676bc975af2e" "--output-document=./wpa_libs.patch"
-    patch -p1 < ./wpa_libs.patch
+    wgetter "./wpa_libnl.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_libnl.patch"
+    patch -p1 < ./wpa_libnl.patch
     printf "WPA_SUPPLICANT: patch to setup the variables\n"
     wgetter "./wpa_makefile.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_makefile.patch"
     patch -p1 < ./wpa_makefile.patch
-    printf "WPA_SUPPLICANT: wget a .config file to configure the source code\n"
-    rm -f ./wpa_supplicant/.config
-    wgetter "./wpa_supplicant.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_supplicant.cfg"
-    mv ./wpa_supplicant.cfg ./wpa_supplicant/.config
     cd ./wpa_supplicant/
-    export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
+    printf "WPA_SUPPLICANT: wget a .config file to configure the source code\n"
+    wgetter "./wpa_supplicant.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_supplicant.cfg"
+    mover "./wpa_supplicant.cfg" "./.config"
     printf "WPA_SUPPLICANT: build the source code\n"
+    export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     make clean
     make CC="$CC" wpa_supplicant wpa_cli
     unset CC
@@ -258,7 +246,7 @@ wpa_build () {
 
 # kirc simple IRC client
 kirc_build () {
-	rm -rf ./kirc/
+    rm -rf ./kirc/
     printf "KIRC: git clone a repository\n"
     git clone --depth=1 --branch 1.2.2 "https://github.com/mcpcpc/kirc.git"
     cd ./kirc/
@@ -281,7 +269,7 @@ kirc_build () {
 # linux-firmware needed for some Ethernet/WiFi network adapters
 firmware_get () {
     printf "LINUX-FIRMWARE: git clone a repository\n"
-    git clone --depth=1 "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
+    git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
 }
 
 # Busybox filesystem used by a Linux kernel
@@ -300,9 +288,8 @@ busybox_build () {
     printf "BUSYBOX: fix for host OS like Arch/Artix Linux with GCC 14 or newer\n"
     sed -i "s/main() {}/int main() {}/" ./scripts/kconfig/lxdialog/check-lxdialog.sh
     printf "BUSYBOX: wget a .config file to configure the source code\n"
-    rm -f ./.config
     wgetter "./busybox.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/busybox.cfg"
-    mv ./busybox.cfg ./.config
+    mover "./busybox.cfg" "./.config"
     printf "BUSYBOX: setup the variables\n"
     sed -i "s|.*CONFIG_CROSS_COMPILER_PREFIX.*|CONFIG_CROSS_COMPILER_PREFIX=\"/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-\"|" ./.config
     sed -i "s|.*CONFIG_SYSROOT.*|CONFIG_SYSROOT=\"/home/artix/my-floppy-distro/x86_64-linux-musl-cross\"|" ./.config
@@ -502,3 +489,5 @@ busybox_build
 syslinux_config
 floppinux_build
 cd ./../
+
+#

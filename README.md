@@ -4,7 +4,7 @@
 
 ## 🛠️ FLOPPINUX 2026 Workshop (v0.3.1-amd64net) 🛠️
 
-**[Complete tutorial to build your own FLOPPINUX-AMD64NET from scratch](floppinux.md)**
+**OUTDATED , PLEASE JUST TAKE A LOOK AT FLOPPINUX-AMD64NET.SH MEGASCRIPT FOR A WHILE [Complete tutorial to build your own FLOPPINUX-AMD64NET from scratch](floppinux.md)**
 
 **This is a modified floppinux "amd64net" distribution. It is primarily aimed for embedding as a virtual floppy into the opensource coreboot BIOS of supported AMD PCs ( more information here - http://dangerousprototypes.com/docs/Lenovo_G505S_hacking ), however it may be used for other needs as well. Main features:**
 

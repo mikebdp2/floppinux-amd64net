@@ -116,7 +116,7 @@ cd /home/artix/my-floppy-distro/
 Install needed software/libs. On Artix:
 
 ```bash
-sudo pacman -S bc bison cmocka coreutils cpio curl flex gcc m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
+sudo pacman -S bc bison cmake cmocka coreutils cpio curl flex gcc m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
 ```
 
 Also, after fully upgrading the system with `pacman -Suy`, I downgrade some packages including GCC to avoid the possible problems I have encountered at other places:
@@ -125,6 +125,24 @@ sudo pacman -U https://archive.artixlinux.org/packages/g/gcc/gcc-14.2.1%2Br753%2
 https://archive.artixlinux.org/packages/g/gcc-libs/gcc-libs-14.2.1%2Br753%2Bg1cd744a6828f-1-x86_64.pkg.tar.zst \
 https://archive.artixlinux.org/packages/p/parted/parted-3.4-2-x86_64.pkg.tar.zst
 ```
+
+NEW ERRATA : a couple of days ago I started getting a conflict with these packages while trying to do this :
+```
+libasan libatomic libgcc libgfortran libgomp liblsan libobjc libquadmath libstdc++ libtsan libubsan
+```
+So, I will try overwriting their files and hope that my system does not break :
+```
+sudo pacman -U --overwrite "*" https://archive.artixlinux.org/packages/g/gcc/gcc-14.2.1%2Br753%2Bg1cd744a6828f-1-x86_64.pkg.tar.zst https://archive.artixlinux.org/packages/g/gcc-libs/gcc-libs-14.2.1%2Br753%2Bg1cd744a6828f-1-x86_64.pkg.tar.zst https://archive.artixlinux.org/packages/p/parted/parted-3.4-2-x86_64.pkg.tar.zst
+```
+
+Unfortunately you can't rebuild your Artix Linux kernel modules with this older GCC, so i.e. if you use a VirtualBox and upgrade your Linux kernel or do something else that loses the older-compiled standalone kernel modules - in case of any problems, you will have to temporarily upgrade to a newer GCC and re-install your Linux kernel in order to force the rebuilding of said kernel modules. When I will need to do that or if some important stuff breaks, I will have to run :
+```
+sudo pacman  -S --overwrite "*" libasan libatomic libgcc libgfortran libgomp liblsan libobjc libquadmath libstdc++ libtsan libubsan
+```
+
+NOTE : these files could be downloaded from a WebArchive if you have a trouble accessing them directly.
+
+...
 
 You will also have to enable the Arch Linux "extra" repository in order to get the `sstrip` utility for reducing the ELF file sizes and `strip-nondeterminism` for stable LZMA sizes:
 

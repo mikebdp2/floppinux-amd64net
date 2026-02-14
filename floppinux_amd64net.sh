@@ -301,7 +301,7 @@ firmware_get () {
 busybox_build () {
     rm -rf ./busybox/
     printgr "BUSYBOX" "git clone a repository"
-    git clone --depth=1 --branch 1_37_stable "https://git.busybox.net/busybox.git"
+    git clone --depth=1 --branch 1_37_stable "https://github.com/mikebdp2/busybox.git"
     cd ./busybox/
     printgr "BUSYBOX" "upgrade the source code to -Oz optimization level"
     rm -rf ./../temp.git/

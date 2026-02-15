@@ -192,7 +192,7 @@ linux_build () {
     cd ./../
     printgr "LINUX" "create a symbolic link"
     rm -f "./bzImage"
-    ln -s "./arch/x86_64/boot/bzImage" "./bzImage"
+    ln -s "./linux/arch/x86_64/boot/bzImage" "./bzImage"
     return 0
 }
 

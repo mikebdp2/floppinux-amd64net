@@ -84,8 +84,8 @@ commands_check () {
 # Checks if a file '$1' exists.
 file_exists () {
     if [ ! -f "$1" ] ; then
-        printf "\n${byellow}WARNING${bend}: file ${byellow}$1${bend} is not found !\n"
-        encontinue
+        # printf "\n${byellow}WARNING${bend}: file ${byellow}$1${bend} is not found !\n"
+        # encontinue
         return 1
     else
         return 0
@@ -95,8 +95,8 @@ file_exists () {
 # Checks if a directory '$1' exists.
 dir_exists () {
     if [ ! -d "$1" ] ; then
-        printf "\n${byellow}WARNING${bend}: directory ${byellow}$1${bend} is not found !\n"
-        encontinue
+        # printf "\n${byellow}WARNING${bend}: directory ${byellow}$1${bend} is not found !\n"
+        # encontinue
         return 1
     else
         return 0
@@ -110,6 +110,8 @@ mover () {
         mv "$1" "$2"
         return 0
     else
+        printf "\n${byellow}ERROR${bend}: object ${byellow}$1${bend} is not found !\n"
+        encontinue
         return 1
     fi
 }

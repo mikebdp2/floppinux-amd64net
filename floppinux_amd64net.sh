@@ -191,6 +191,7 @@ linux_build () {
     printgr "LINUX" "create a symbolic link"
     rm -f "./bzImage"
     ln -s "./arch/x86_64/boot/bzImage" "./bzImage"
+    return 0
 }
 
 # Dropbear SSH client and SCP utility
@@ -215,6 +216,7 @@ dropbear_build () {
     ls -al ./dbclient
     ls -al ./scp
     cd ./../
+    return 0
 }
 
 # libnl-tiny library needed for wpa_supplicant
@@ -256,6 +258,7 @@ libnl_build () {
     cd /home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/include/libnl-tiny/
     patch -p1 < /home/artix/my-floppy-distro/libnl-tiny/libnl-tiny_ucred.patch
     cd /home/artix/my-floppy-distro/
+    return 0
 }
 
 # wpa_supplicant daemon and wpa_cli utility for connecting to WiFi networks
@@ -306,6 +309,7 @@ wpa_build () {
     printgr "WPA_CLI" "print a size of a binary"
     ls -al ./wpa_cli
     cd ./../../
+    return 0
 }
 
 # linux-firmware needed for some Ethernet/WiFi network adapters
@@ -314,6 +318,7 @@ firmware_get () {
     rm -rf ./linux-firmware/
     printgr "LINUX-FIRMWARE" "git clone a repository"
     git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
+    return 0
 }
 
 # kirc simple IRC client
@@ -338,6 +343,7 @@ kirc_build () {
     printgr "KIRC" "generate a user manual"
     man ./kirc.1 > ./kirc.txt
     cd ./../
+    return 0
 }
 
 # Busybox filesystem used by a Linux kernel
@@ -485,6 +491,7 @@ EOF
     cd ./../
     printgr "BUSYBOX" "print a size of a rootfs archive"
     ls -al ./rootfs.cpio.lzma
+    return 0
 }
 
 syslinux_config() {
@@ -510,6 +517,7 @@ INITRD rfscpiol.zma
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 ignore_loglevel earlyprintk=tty0 loglevel=8 tsc=unstable
 EOF
     chmod +x ./syslinux_debug.cfg
+    return 0
 }
 
 floppinux_build () {
@@ -542,6 +550,7 @@ floppinux_build () {
     sudo rm -rf /temp_mnt
     printgr "FLOPPINUX" "print a sha256sum of a floppy"
     sha256sum ./floppinux.img
+    return 0
 }
 
 commands_check
@@ -564,4 +573,5 @@ floppinux_build
 printgr "MY-FLOPPY-DISTRO" "build completed"
 cd ./../
 
+exit 0
 #

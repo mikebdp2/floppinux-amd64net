@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 13 Feb 2026.
+#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 15 Feb 2026.
 #
 #   Produces a FLOPPINUX-AMD64NET floppy to use as a virtual floppy at the
 #    coreboot-supported AMD-no-PSP-backdoor boards that I am maintaining :
@@ -23,12 +23,35 @@
  bgreen="\e[1;32m"
 byellow="\e[1;33m"
    bend="\e[0m"
+ 
+# Waits until a user presses Enter.
+encontinue () {
+    printf "\npress [ENTER] to continue... "
+    encontinue_old_stty_cfg=$( stty -g )
+    stty raw -echo
+    while true ; do
+        encontinue_answer=$( head -c 1 )
+        case "$encontinue_answer" in
+            *"$ctrl_c"*|"$ctrl_x"*|"$ctrl_z"*)
+                stty "$encontinue_old_stty_cfg"
+                printf "${bred}TERMINATED${bend}\n"
+                exit 1
+                ;;
+            *"$enter"*)
+                stty "$encontinue_old_stty_cfg"
+                printf "\n"
+                return 0
+                ;;
+        esac
+    done
+}
 
 # Checks if a command '$1' exists.
 command_exists () {
     if [ ! -x "$( command -v $1 )" ] ; then
-        printf "\n${bred}ERROR${bend}: command ${bold}$1${bend} is not found !\n"
+        printf "\n${bred}ERROR${bend}: command ${byellow}$1${bend} is not found !\n"
         printf "       Please install ${bgreen}$2${bend} if you are on Artix Linux\n"
+        encontinue
         return 1
     else
         return 0
@@ -61,17 +84,29 @@ commands_check () {
 # Checks if a file '$1' exists.
 file_exists () {
     if [ ! -f "$1" ] ; then
-        printf "\n${byellow}WARNING${bend}: file ${bold}$1${bend} is not found !\n"
+        printf "\n${byellow}WARNING${bend}: file ${byellow}$1${bend} is not found !\n"
+        encontinue
         return 1
     else
         return 0
     fi
 }
 
-# Force removes a file '$2' and then moves a file '$1' to '$2'.
+# Checks if a directory '$1' exists.
+dir_exists () {
+    if [ ! -d "$1" ] ; then
+        printf "\n${byellow}WARNING${bend}: directory ${byellow}$1${bend} is not found !\n"
+        encontinue
+        return 1
+    else
+        return 0
+    fi
+}
+
+# Force removes a '$2' object and then moves a '$1' object to '$2' location.
 mover () {
-    if file_exists "$1" ; then
-        rm -f "$2"
+    if file_exists "$1" || dir_exists "$1" ; then
+        rm -rf "$2"
         mv "$1" "$2"
         return 0
     else
@@ -94,7 +129,7 @@ wgetter () {
         fi
     fi
     if [ ! -f "$1" ] ; then
-        printf "\n${byellow}WARNING${bend}: cannot download a ${bold}$1${bend} file !"
+        printf "\n${byellow}WARNING${bend}: cannot download a ${byellow}$1${bend} file !"
         printf "\n         Please check your Internet connection and try again.\n"
         return 1
     else
@@ -103,6 +138,7 @@ wgetter () {
     fi
 }
 
+# Prints the current status message in '$1: $2' format with a green color highlighting of a '$1'.
 printgr () {
     printf "${bgreen}$1${bend}: $2\n"
     return 0
@@ -115,17 +151,18 @@ musl_get () {
     printgr "MUSL" "wget the archive with a toolchain"
     wgetter "./x86_64-linux-musl-cross.tgz" "https://musl.cc/x86_64-linux-musl-cross.tgz"
     tar -xvf ./x86_64-linux-musl-cross.tgz
+    return 0
 }
 
 # Linux kernel
 linux_build () {
     printgr "LINUX" "remove the old directory if it exists"
     rm -rf ./linux/
+    printgr "LINUX" "git clone a repository"
     git clone --depth=1 --branch v6.18.10 "https://github.com/gregkh/linux.git"
     cd ./linux/
     printgr "LINUX" "upgrade the source code to -Oz optimization level"
-    rm -rf ./../temp.git/
-    mv ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
+    mover ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
     printgr "LINUX" "replace -O1 with -Oz optimization level..."
     find . -type f -print0 | xargs -0 sed -i -e "s/-O1/-Oz/g"
     printgr "LINUX" "replace -O2 with -Oz optimization level..."
@@ -134,7 +171,7 @@ linux_build () {
     find . -type f -print0 | xargs -0 sed -i -e "s/-O3/-Oz/g"
     printgr "LINUX" "replace -Os with -Oz optimization level..."
     find . -type f -print0 | xargs -0 sed -i -e "s/-Os/-Oz/g"
-    mv ./../temp.git/ ./.git/
+    mover ./../temp.git/ ./.git/
     git add .
     git commit -m "LINUX: upgrade the source code to -Oz optimization level"
     printgr "LINUX" "patch to disable the MICROCODE and NET_SELFTESTS configs"
@@ -146,11 +183,14 @@ linux_build () {
     printgr "LINUX" "wget a .config file to configure the source code"
     wgetter "./linux.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux.cfg"
     mover "./linux.cfg" "./.config"
-    make ARCH="x86_64" clean
+    printgr "LINUX" "build the source code"
     make ARCH="x86_64" bzImage -j$(nproc)
+    printgr "LINUX" "print a size of a kernel"
     ls -al ./arch/x86_64/boot/bzImage
-    cp ./arch/x86_64/boot/bzImage ./../bzImage
     cd ./../
+    printgr "LINUX" "create a symbolic link"
+    rm -f "./bzImage"
+    ln -s "./arch/x86_64/boot/bzImage" "./bzImage"
 }
 
 # Dropbear SSH client and SCP utility
@@ -160,19 +200,18 @@ dropbear_build () {
     printgr "DROPBEAR" "git clone a repository"
     git clone --depth=1 --branch DROPBEAR_2025.89 "https://github.com/mkj/dropbear.git"
     cd ./dropbear/
-    make clean
-    make distclean
-    export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     printgr "DROPBEAR" "configure the source code"
     ./configure --host=x86_64-linux-musl --prefix=/usr --enable-static --disable-zlib --disable-syslog --disable-lastlog --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx --disable-shadow --enable-bundled-libtom --disable-openpty --disable-loginfunc --disable-pututline --disable-pututxline --without-pam --disable-plugin CC='/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
-    CFLAGS='-DDROPBEAR_ECDSA=0 -DDROPBEAR_ECDH=0 -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie -I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross' \
+    CFLAGS='-DDROPBEAR_ECDSA=0 -DDROPBEAR_ECDH=0 -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie -I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross -fno-strict-aliasing' \
     LDFLAGS='-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/x86_64-linux-musl/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross'
     printgr "DROPBEAR" "build the source code"
+    export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     make CC="$CC" PROGRAMS="dbclient" dbclient scp -j$(nproc)
     unset CC
     printgr "DROPBEAR" "sstrip the binaries"
     sstrip ./dbclient
     sstrip ./scp
+    printgr "DROPBEAR" "print the sizes of binaries"
     ls -al ./dbclient
     ls -al ./scp
     cd ./../
@@ -198,8 +237,7 @@ libnl_build () {
     printgr "LIBNL-TINY" "install the library to a toolchain directory"
     make install
     cd ./../
-    rm -rf ./build-tc/
-    mv ./build/ ./build-tc/
+    mover ./build/ ./build-tc/
     mkdir ./build/
     cd ./build/
     printgr "LIBNL-TINY" "configure the source code for host OS directory installation"
@@ -209,8 +247,7 @@ libnl_build () {
     printgr "LIBNL-TINY" "install the library to a host OS directory"
     sudo make install
     cd ./../
-    rm -rf ./build-rt/
-    mv ./build/ ./build-rt/
+    mover ./build/ ./build-rt/
     printgr "LIBNL-TINY" "patch to fix ucred structure for external usage by wpa_supplicant"
     wgetter "./libnl-tiny_ucred.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/libnl-tiny_ucred.patch"
     cd ./../
@@ -223,10 +260,8 @@ libnl_build () {
 
 # wpa_supplicant daemon and wpa_cli utility for connecting to WiFi networks
 wpa_build () {
-    printgr "WPA" "remove the old directories if they exist"
+    printgr "WPA" "remove the old directory if it exists"
     rm -rf ./hostap/
-    rm -rf ./wpa_supplicant/
-    rm -rf ./wpa_cli/
     printgr "WPA" "git clone a repository"
     git clone --depth=1 --branch hostap_2_11 "https://github.com/mikebdp2/hostap.git"
     cd ./hostap/
@@ -237,7 +272,10 @@ wpa_build () {
     wgetter "./wpa.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa.cfg"
     mover "./wpa.cfg" "./wpa_supplicant/.config"
     cd ./../
-    mv ./hostap/ ./wpa_supplicant/
+    printgr "WPA_SUPPLICANT" "remove the old directory if it exists"
+    mover ./hostap/ ./wpa_supplicant/
+    printgr "WPA_CLI" "remove the old directory if it exists"
+    rm -rf ./wpa_cli/
     cp -r ./wpa_supplicant/ ./wpa_cli/
     cd ./wpa_supplicant/
     printgr "WPA_SUPPLICANT" "patch to setup the variables"
@@ -251,6 +289,7 @@ wpa_build () {
     unset CC
     printgr "WPA_SUPPLICANT" "sstrip the binary"
     sstrip ./wpa_supplicant
+    printgr "WPA_SUPPLICANT" "print a size of a binary"
     ls -al ./wpa_supplicant
     cd ./../../wpa_cli/
     printgr "WPA_CLI" "patch to setup the variables"
@@ -264,12 +303,22 @@ wpa_build () {
     unset CC
     printgr "WPA_CLI" "sstrip the binary"
     sstrip ./wpa_cli
+    printgr "WPA_CLI" "print a size of a binary"
     ls -al ./wpa_cli
     cd ./../../
 }
 
+# linux-firmware needed for some Ethernet/WiFi network adapters
+firmware_get () {
+    printgr "LINUX-FIRMWARE" "remove the old directory if it exists"
+    rm -rf ./linux-firmware/
+    printgr "LINUX-FIRMWARE" "git clone a repository"
+    git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
+}
+
 # kirc simple IRC client
 kirc_build () {
+    printgr "KIRC" "remove the old directory if it exists"
     rm -rf ./kirc/
     printgr "KIRC" "git clone a repository"
     git clone --depth=1 --branch 1.2.2 "https://github.com/mcpcpc/kirc.git"
@@ -284,31 +333,25 @@ kirc_build () {
     unset CC
     printgr "KIRC" "sstrip a binary"
     sstrip ./kirc
+    printgr "KIRC" "print a size of a binary"
     ls -al ./kirc
-    printgr "KIRC" "generate a manual"
+    printgr "KIRC" "generate a user manual"
     man ./kirc.1 > ./kirc.txt
     cd ./../
 }
 
-# linux-firmware needed for some Ethernet/WiFi network adapters
-firmware_get () {
-    rm -rf ./linux-firmware/
-    printgr "LINUX-FIRMWARE" "git clone a repository"
-    git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
-}
-
 # Busybox filesystem used by a Linux kernel
 busybox_build () {
+    printgr "BUSYBOX" "remove the old directory if it exists"
     rm -rf ./busybox/
     printgr "BUSYBOX" "git clone a repository"
     git clone --depth=1 --branch 1_37_stable "https://github.com/mikebdp2/busybox.git"
     cd ./busybox/
     printgr "BUSYBOX" "upgrade the source code to -Oz optimization level"
-    rm -rf ./../temp.git/
-    mv ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
+    mover ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
     printgr "BUSYBOX" "replace -O2 with -Oz optimization level..."
     find . -type f -print0 | xargs -0 sed -i -e "s/-O2/-Os/g"
-    mv ./../temp.git/ ./.git/
+    mover ./../temp.git/ ./.git/
     git add .
     git commit -m "BUSYBOX: upgrade the source code to -Oz optimization level"
     printgr "BUSYBOX" "fix for host OS like Arch/Artix Linux with GCC 14 or newer"
@@ -411,29 +454,28 @@ EOF
 ctrl_interface=/var/run/wpa_supplicant
 update_config=1
 EOF
-    printgr "BUSYBOX" "create the get_kirc.sh script"
-    rm -f  ./etc/get_kirc.sh
-    cat >> ./etc/get_kirc.sh << EOF
-wget "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/kirc"
-wget "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/kirc.txt"
-chmod +x ./kirc
+    printgr "BUSYBOX" "create the get_repo.sh script"
+    rm -f  ./etc/get_repo.sh
+    cat >> ./etc/get_repo.sh << EOF
+wget "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/repo.sh"
+chmod +x ./repo.sh
 EOF
-    chmod +x ./etc/get_kirc.sh
+    chmod +x ./etc/get_repo.sh
     printgr "BUSYBOX" "copy the external files"
     cp ./../dropbear/dbclient ./usr/bin/dbclient
     cp ./../dropbear/scp ./usr/bin/scp
     cp ./../wpa_supplicant/wpa_supplicant/wpa_supplicant ./usr/bin/wpa_supplicant
     cp ./../wpa_cli/wpa_supplicant/wpa_cli ./usr/bin/wpa_cli
-    ### cp ./../kirc/kirc /usr/bin/kirc
-    ### cp ./../kirc/kirc.txt /etc/kirc.txt
     cp ./../linux-firmware/ath9k_htc/htc_9271-1.4.0.fw ./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw
     cp ./../linux-firmware/rtl_nic/rtl816* ./lib/firmware/rtl_nic/
+    ### cp ./../kirc/kirc /usr/bin/kirc
+    ### cp ./../kirc/kirc.txt /etc/kirc.txt
     cd ./usr/bin/
     ln -s ./dbclient ./ssh
     cd ./../../
     printgr "BUSYBOX" "give the ownership to root"
     sudo chown -R root:root ./
-    printgr "BUSYBOX" "compress the directory"
+    printgr "BUSYBOX" "create a rootfs archive"
     rm -f ./../rootfs.cpio
     rm -f ./../rootfs.cpio.lzma
     find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs.cpio
@@ -441,6 +483,7 @@ EOF
     xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs.cpio > ./../rootfs.cpio.lzma
     rm -f ./../rootfs.cpio
     cd ./../
+    printgr "BUSYBOX" "print a size of a rootfs archive"
     ls -al ./rootfs.cpio.lzma
 }
 
@@ -485,7 +528,7 @@ floppinux_build () {
     printgr "FLOPPINUX" "fill a floppy"
     printgr "FLOPPINUX" "copy a Linux kernel"
     ls -al ./bzImage
-    sudo cp ./bzImage /temp_mnt
+    sudo cp ./linux/arch/x86/boot/bzImage /temp_mnt
     df -B 1
     printgr "FLOPPINUX" "copy a rootfs filesystem"
     ls -al ./rootfs.cpio.lzma
@@ -497,24 +540,28 @@ floppinux_build () {
     printgr "FLOPPINUX" "unmount a floppy"
     sudo umount /temp_mnt
     sudo rm -rf /temp_mnt
+    printgr "FLOPPINUX" "print a sha256sum of a floppy"
     sha256sum ./floppinux.img
 }
 
 commands_check
+sudo ls
+printgr "MY-FLOPPY-DISTRO" "remove the old directory if it exists"
 sudo rm -rf /home/artix/my-floppy-distro/
 mkdir /home/artix/my-floppy-distro/
 cd /home/artix/my-floppy-distro/
-sudo ls
+printgr "MY-FLOPPY-DISTRO" "build started"
 musl_get
 linux_build
 dropbear_build
 libnl_build
 wpa_build
-kirc_build
 firmware_get
+kirc_build
 busybox_build
 syslinux_config
 floppinux_build
+printgr "MY-FLOPPY-DISTRO" "build completed"
 cd ./../
 
 #

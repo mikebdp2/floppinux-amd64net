@@ -366,20 +366,29 @@ From menus choose those options:
       - Default number of RAM disk: 1 (CONFIG_BLK_DEV_RAM_COUNT)
   - Misc devices
     - Disable "Intel Management Engine Interface": CONFIG_INTEL_MEI
+  - SCSI device support
+    - SCSI device support: CONFIG_SCSI
+      - SCSI disk support: CONFIG_BLK_DEV_SD
+      - Disable "SCSI low-level drivers": SCSI_LOWLEVEL
   - USB support: CONFIG_USB_SUPPORT
     - Support for Host-side USB: CONFIG_USB
       - EHCI HCD (USB 2.0) support: CONFIG_USB_EHCI_HCD
       - OHCI HCD (USB 1.1) support: CONFIG_USB_OHCI_HCD
+    - USB Mass Storage support: CONFIG_USB_STORAGE
   - Network device support: CONFIG_NETDEVICES
     - Disable "Network core driver support": CONFIG_NET_CORE
     - Ethernet driver support: CONFIG_ETHERNET
-      - **Uncheck everything there before proceeding**
+      - **Uncheck everything there before proceeding, then select only one of these adapters**
       - AMD devices: CONFIG_NET_VENDOR_AMD
         - AMD PCnet32 PCI support: CONFIG_PCNET32 (for VirtualBox)
       - Atheros devices: CONFIG_NET_VENDOR_ATHEROS
-        - Qualcomm Atheros AR816x/AR817x support: CONFIG_ALX
+        - Qualcomm Atheros AR816x/AR817x support: CONFIG_ALX (for AMD Lenovo G505S)
+      - Intel devices: CONFIG_NET_VENDOR_INTEL
+        - Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support: CONFIG_E1000E
+          - Disable "Support HW cross-timestamp on PCH devices": CONFIG_E1000E_HWTS
+        - Disable "Intel (82586/82593/82596) devices": CONFIG_NET_VENDOR_I825XX
       - Realtek devices: CONFIG_NET_VENDOR_REALTEK
-        - Realtek 8169/8168/8101/8125 ethernet support: CONFIG_R8169 (also supports 8111)
+        - Realtek 8169/8168/8101/8125 ethernet support: CONFIG_R8169 (also supports 8111) (for ASUS A88XM-E / AM1I-A)
     - Wireless LAN: CONFIG_WLAN
       - **Uncheck everything there before proceeding**
       - Atheros/Qualcomm devices: CONFIG_WLAN_VENDOR_ATH
@@ -389,8 +398,7 @@ From menus choose those options:
       - Atheros HTC based wireless cards support: CONFIG_ATH9K_HTC
   - Input device support
     - Generic input layer (needed for keyboard, mouse, ...): CONFIG_INPUT
-      - Mice: CONFIG_INPUT_MOUSE
-        - Elantech PS/2 protocol extension: CONFIG_MOUSE_PS2_ELANTECH (may be a part of AMD Lenovo G505S laptop)
+      - Disable "Mice": CONFIG_INPUT_MOUSE
       - Hardware I/O ports
         - Disable "Serial port line discipline": CONFIG_SERIO_SERPORT
   - Character devices

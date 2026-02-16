@@ -15,15 +15,17 @@
   - Physical floppy drive support (ISA-style DMA support aka ISA_DMA_API) is disabled in Linux kernel too because I needed some extra space
   - Had to disable printk in order to win even more space, to re-enable it for debugging you will have to temporarily disable the other features
 - Device support
-  - Ethernet
+  - Ethernet (exact supported Ethernet depends on a floppy version)
+    - AMD PCnet-FAST III Am79C973/79C971 - could be selected in a VirtualBox settings if you would like to try out this floppy distribution there
     - Qualcomm/Atheros AR8161/AR8162/QCA8171/QCA8172 - found in coreboot-supported AMD Lenovo G505S - the most powerful no-ME/no-PSP coreboot laptop
     - Realtek RTL8111/RTL8168/RTL8169/RTL8101/RTL8125 - found in coreboot-supported ASUS A88XM-E & AM1I-A desktops and dirt cheap PCIe Ethernet cards
+    - Intel PRO/1000 PCI-Express 82574L - found in coreboot-supported ASUS KGPE-D16 - the most powerful no-ME/no-PSP coreboot/libreboot server
   - WiFi
     - Atheros ath9k family of PCIe WiFi adapters, such as AR9462 that works on 100% opensource without any firmware
     - Atheros ath9k_htc family of USB WiFi adapters, such as AR9271 that seems to need a firmware for unknown reasons
   - USB
     - EHCI (USB 2.0) / OHCI (USB 1.1) support, essential for using the USB WiFi adapters as well as the input devices
-    - Please note that it is possible to enable the USB flash drive support / filesystem support at cost of something else
+    - SCSI and USB storage support is enabled, so you can write the files to a FAT-formatted (old FAT) USB flash drive
   - ACPI:
     - Had to enable it in order for AR9271 USB WiFi to work on coreboot-supported AMD Lenovo G505S laptop, at cost of disabling printk messages
   - SMP for multiple CPUs / CPU cores support

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 15 Feb 2026.
+#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 16 Feb 2026.
 #
 #   Produces a FLOPPINUX-AMD64NET floppy to use as a virtual floppy at the
 #    coreboot-supported AMD-no-PSP-backdoor boards that I am maintaining :
@@ -110,7 +110,7 @@ mover () {
         mv "$1" "$2"
         return 0
     else
-        printf "\n${byellow}ERROR${bend}: object ${byellow}$1${bend} is not found !\n"
+        printf "\n${bred}ERROR${bend}: object ${byellow}$1${bend} is not found !\n"
         encontinue
         return 1
     fi
@@ -140,10 +140,35 @@ wgetter () {
     fi
 }
 
-# Prints the current status message in '$1: $2' format with a green color highlighting of a '$1'.
+# Prints the status message in '$1: $2' format with a green color highlighting of a '$1'.
 printgr () {
     printf "${bgreen}$1${bend}: $2\n"
     return 0
+}
+
+# Prints the notification message in '$1: $2' format with a yellow color highlighting of a '$1'.
+printye () {
+    printf "${byellow}$1${bend}: $2\n"
+    return 0
+}
+
+# Prints the error message in '$1: $2' format with a red color highlighting of a '$1'.
+printrd () {
+    printf "${bred}$1${bend}: $2\n"
+    return 0
+}
+
+
+# Check if a git clone of '$1' has been successful.
+git_clone_check () {
+    if [ ! -d "$1" ] ; then
+        printf "\n${byellow}WARNING${bend}: cannot download a ${byellow}$1${bend} repository !"
+        printf "\n         Please check your Internet connection and try again.\n"
+        encontinue
+        return 1
+    else
+        return 0
+    fi
 }
 
 # MUSL toolchain
@@ -156,12 +181,49 @@ musl_get () {
     return 0
 }
 
+# Build a specific '$1' version of a Linux kernel
+linux_build_ver () {
+    if [ -z "$1" ] ; then
+        printf "\n${bred}ERROR${bend}: kernel version is not specified !\n"
+        encontinue
+        return 1
+    else
+        case "$1" in
+            *"ath"*|*"pcn"*|*"rtl"*)
+                printgr "LINUX-$1" "create a directory"
+                rm -rf ./linux-$1/
+                cp -r ./linux/ ./linux-$1/
+                cd ./linux-$1/
+                printgr "LINUX-$1" "wget a .config file to configure the source code"
+                wgetter "./linux-$1.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux-$1.cfg"
+                mover "./linux-$1.cfg" "./.config"
+                printgr "LINUX-$1" "build the source code"
+                make ARCH="x86_64" bzImage -j$(nproc)
+                printgr "LINUX-$1" "print a size of a kernel"
+                ls -al ./arch/x86_64/boot/bzImage
+                cd ./../
+                printgr "LINUX-$1" "create a symbolic link"
+                rm -f "./bzImage-$1"
+                ln -s "./linux-$1/arch/x86_64/boot/bzImage" "./bzImage-$1"
+                ;;
+            *)
+                printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} kernel version !\n\n"
+                exit 1
+                ;;
+        esac
+    fi
+    return 0
+}
+
 # Linux kernel
 linux_build () {
     printgr "LINUX" "remove the old directory if it exists"
     rm -rf ./linux/
-    printgr "LINUX" "git clone a repository"
-    git clone --depth=1 --branch v6.18.10 "https://github.com/gregkh/linux.git"
+    while [ ! -d "./linux/" ] ; do
+        printgr "LINUX" "git clone a repository"
+        git clone --depth=1 --branch v6.18.10 "https://github.com/gregkh/linux.git"
+        git_clone_check "./linux/"
+    done
     cd ./linux/
     printgr "LINUX" "upgrade the source code to -Oz optimization level"
     mover ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
@@ -182,17 +244,10 @@ linux_build () {
     git add ./arch/x86/Kconfig
     git add ./net/Kconfig
     git commit -m "LINUX: disable the MICROCODE and NET_SELFTESTS configs"
-    printgr "LINUX" "wget a .config file to configure the source code"
-    wgetter "./linux.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux.cfg"
-    mover "./linux.cfg" "./.config"
-    printgr "LINUX" "build the source code"
-    make ARCH="x86_64" bzImage -j$(nproc)
-    printgr "LINUX" "print a size of a kernel"
-    ls -al ./arch/x86_64/boot/bzImage
     cd ./../
-    printgr "LINUX" "create a symbolic link"
-    rm -f "./bzImage"
-    ln -s "./linux/arch/x86_64/boot/bzImage" "./bzImage"
+    linux_build_ver "ath"
+    linux_build_ver "pcn"
+    linux_build_ver "rtl"
     return 0
 }
 
@@ -200,8 +255,11 @@ linux_build () {
 dropbear_build () {
     printgr "DROPBEAR" "remove the old directory if it exists"
     rm -rf ./dropbear/
-    printgr "DROPBEAR" "git clone a repository"
-    git clone --depth=1 --branch DROPBEAR_2025.89 "https://github.com/mkj/dropbear.git"
+    while [ ! -d "./dropbear/" ] ; do
+        printgr "DROPBEAR" "git clone a repository"
+        git clone --depth=1 --branch DROPBEAR_2025.89 "https://github.com/mkj/dropbear.git"
+        git_clone_check "./dropbear/"
+    done
     cd ./dropbear/
     printgr "DROPBEAR" "configure the source code"
     ./configure --host=x86_64-linux-musl --prefix=/usr --enable-static --disable-zlib --disable-syslog --disable-lastlog --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx --disable-shadow --enable-bundled-libtom --disable-openpty --disable-loginfunc --disable-pututline --disable-pututxline --without-pam --disable-plugin CC='/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
@@ -225,8 +283,11 @@ dropbear_build () {
 libnl_build () {
     printgr "LIBNL-TINY" "remove the old directory if it exists"
     rm -rf ./libnl-tiny/
-    printgr "LIBNL-TINY" "git clone a repository"
-    git clone --depth=1 "https://github.com/openwrt/libnl-tiny.git"
+    while [ ! -d "./libnl-tiny/" ] ; do
+        printgr "LIBNL-TINY" "git clone a repository"
+        git clone --depth=1 "https://github.com/openwrt/libnl-tiny.git"
+        git_clone_check "./libnl-tiny/"
+    done
     cd ./libnl-tiny/
     printgr "LIBNL-TINY" "patch to setup the variables and fix ucred structure for libnl-tiny build"
     wgetter "./libnl-tiny.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/libnl-tiny.patch"
@@ -249,13 +310,14 @@ libnl_build () {
     printgr "LIBNL-TINY" "build the source code"
     make -j$(nproc)
     printgr "LIBNL-TINY" "install the library to a host OS directory"
+    sudoer "install the LIBNL-TINY library to a host OS directory"
     sudo make install
     cd ./../
     mover ./build/ ./build-rt/
     printgr "LIBNL-TINY" "patch to fix ucred structure for external usage by wpa_supplicant"
     wgetter "./libnl-tiny_ucred.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/libnl-tiny_ucred.patch"
-    cd ./../
     cd /usr/include/libnl-tiny/
+    sudoer "apply a LIBNL-TINY patch to fix ucred structure for external usage by wpa_supplicant"
     sudo patch -p1 < /home/artix/my-floppy-distro/libnl-tiny/libnl-tiny_ucred.patch
     cd /home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/include/libnl-tiny/
     patch -p1 < /home/artix/my-floppy-distro/libnl-tiny/libnl-tiny_ucred.patch
@@ -267,8 +329,11 @@ libnl_build () {
 wpa_build () {
     printgr "WPA" "remove the old directory if it exists"
     rm -rf ./hostap/
-    printgr "WPA" "git clone a repository"
-    git clone --depth=1 --branch hostap_2_11 "https://github.com/mikebdp2/hostap.git"
+    while [ ! -d "./hostap/" ] ; do
+        printgr "WPA" "git clone a repository"
+        git clone --depth=1 --branch hostap_2_11 "https://github.com/mikebdp2/hostap.git"
+        git_clone_check "./hostap/"
+    done
     cd ./hostap/
     printgr "WPA:" "patch to fix linking with a libnl-tiny library"
     wgetter "./wpa_libnl.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_libnl.patch"
@@ -277,9 +342,9 @@ wpa_build () {
     wgetter "./wpa.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa.cfg"
     mover "./wpa.cfg" "./wpa_supplicant/.config"
     cd ./../
-    printgr "WPA_SUPPLICANT" "remove the old directory if it exists"
+    printgr "WPA_SUPPLICANT" "remove the old directory if it exists and create a new directory"
     mover ./hostap/ ./wpa_supplicant/
-    printgr "WPA_CLI" "remove the old directory if it exists"
+    printgr "WPA_CLI" "remove the old directory if it exists and create a new directory"
     rm -rf ./wpa_cli/
     cp -r ./wpa_supplicant/ ./wpa_cli/
     cd ./wpa_supplicant/
@@ -318,8 +383,11 @@ wpa_build () {
 firmware_get () {
     printgr "LINUX-FIRMWARE" "remove the old directory if it exists"
     rm -rf ./linux-firmware/
-    printgr "LINUX-FIRMWARE" "git clone a repository"
-    git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
+    while [ ! -d "./linux-firmware/" ] ; do
+        printgr "LINUX-FIRMWARE" "git clone a repository"
+        git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
+        git_clone_check "./linux-firmware/"
+    done
     return 0
 }
 
@@ -327,8 +395,11 @@ firmware_get () {
 kirc_build () {
     printgr "KIRC" "remove the old directory if it exists"
     rm -rf ./kirc/
-    printgr "KIRC" "git clone a repository"
-    git clone --depth=1 --branch 1.2.2 "https://github.com/mcpcpc/kirc.git"
+    while [ ! -d "./kirc/" ] ; do
+        printgr "KIRC" "git clone a repository"
+        git clone --depth=1 --branch 1.2.2 "https://github.com/mcpcpc/kirc.git"
+        git_clone_check "./kirc/"
+    done
     cd ./kirc/
     printgr "KIRC" "patch to setup the variables"
     wgetter "./kirc.patch" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/kirc.patch"
@@ -352,8 +423,11 @@ kirc_build () {
 busybox_build () {
     printgr "BUSYBOX" "remove the old directory if it exists"
     rm -rf ./busybox/
-    printgr "BUSYBOX" "git clone a repository"
-    git clone --depth=1 --branch 1_37_stable "https://github.com/mikebdp2/busybox.git"
+    while [ ! -d "./busybox/" ] ; do
+        printgr "BUSYBOX" "git clone a repository"
+        git clone --depth=1 --branch 1_37_stable "https://github.com/mikebdp2/busybox.git"
+        git_clone_check "./busybox/"
+    done
     cd ./busybox/
     printgr "BUSYBOX" "upgrade the source code to -Oz optimization level"
     mover ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
@@ -381,13 +455,11 @@ busybox_build () {
     printgr "BUSYBOX" "generate the initial filesystem"
     rm -rf ./_install/
     make ARCH="x86_64" install
-    sudo rm -rf ./../filesystem/
-    cp -r ./_install/ ./../filesystem
+    rm -rf ./../filesystem/
+    cp -r ./_install/ ./../filesystem/
     cd ./../filesystem/
     printgr "BUSYBOX" "create the filesytem directories"
-    mkdir -pv {dev,proc,etc/init.d,sys,tmp,home,var/run,lib/firmware/ath9k_htc,lib/firmware/rtl_nic}
-    sudo mknod ./dev/console c 5 1
-    sudo mknod ./dev/null c 1 3
+    mkdir -p {./dev/,./proc/,./etc/init.d/,./sys/,./tmp/,./home/,./var/run/,./lib/firmware/ath9k_htc/}
     printgr "BUSYBOX" "wget a welcome message"
     wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
     printgr "BUSYBOX" "create an inittab file"
@@ -467,6 +539,7 @@ EOF
     cat >> ./etc/get_repo.sh << EOF
 wget "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/repo.sh"
 chmod +x ./repo.sh
+./repo.sh
 EOF
     chmod +x ./etc/get_repo.sh
     printgr "BUSYBOX" "copy the external files"
@@ -475,27 +548,74 @@ EOF
     cp ./../wpa_supplicant/wpa_supplicant/wpa_supplicant ./usr/bin/wpa_supplicant
     cp ./../wpa_cli/wpa_supplicant/wpa_cli ./usr/bin/wpa_cli
     cp ./../linux-firmware/ath9k_htc/htc_9271-1.4.0.fw ./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw
-    cp ./../linux-firmware/rtl_nic/rtl816* ./lib/firmware/rtl_nic/
     ### cp ./../kirc/kirc /usr/bin/kirc
     ### cp ./../kirc/kirc.txt /etc/kirc.txt
     cd ./usr/bin/
     ln -s ./dbclient ./ssh
-    cd ./../../
-    printgr "BUSYBOX" "give the ownership to root"
+    cd ./../../../
+    printgr "BUSYBOX-NORTL" "create a directory"
+    if [ -d "./filesystem-nortl/" ] ; then
+        sudoer "remove the old /home/artix/my-floppy-distro/filesystem-nortl/ directory"
+        sudo rm -rf ./filesystem-nortl/
+    fi
+    cp -r ./filesystem/ ./filesystem-nortl/
+    cd ./filesystem-nortl/
+    printgr "BUSYBOX-NORTL" "create the device nodes"
+    sudoer "create the device nodes for BUSYBOX-NORTL"
+    sudo mknod ./dev/console c 5 1
+    sudo mknod ./dev/null c 1 3
+    printgr "BUSYBOX-NORTL" "give the ownership to root"
+    sudoer "give the ownership to root for BUSYBOX-NORTL"
     sudo chown -R root:root ./
-    printgr "BUSYBOX" "create a rootfs archive"
-    rm -f ./../rootfs.cpio
-    rm -f ./../rootfs.cpio.lzma
-    find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs.cpio
-    strip-nondeterminism -t cpio -T 1770768000 ./../rootfs.cpio
-    xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs.cpio > ./../rootfs.cpio.lzma
-    rm -f ./../rootfs.cpio
+    printgr "BUSYBOX-NORTL" "create a rootfs archive"
+    rm -f ./../rootfs-nortl.cpio
+    rm -f ./../rootfs-nortl.cpio.lzma
+    find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-nortl.cpio
+    strip-nondeterminism -t cpio -T 1770768000 ./../rootfs-nortl.cpio
+    xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-nortl.cpio > ./../rootfs-nortl.cpio.lzma
+    rm -f ./../rootfs-nortl.cpio
     cd ./../
-    printgr "BUSYBOX" "print a size of a rootfs archive"
-    ls -al ./rootfs.cpio.lzma
+    printgr "BUSYBOX-NORTL" "print a size of a rootfs archive"
+    ls -al ./rootfs-nortl.cpio.lzma
+    printgr "BUSYBOX-NORTL" "create the symbolic links"
+    rm -f "./rootfs-ath.cpio.lzma"
+    ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-ath.cpio.lzma"
+    rm -f "./rootfs-pcn.cpio.lzma"
+    ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-pcn.cpio.lzma"
+    printgr "BUSYBOX-WIRTL" "create a directory"
+    if [ -d "./filesystem-wirtl/" ] ; then
+        sudoer "remove the old /home/artix/my-floppy-distro/filesystem-wirtl/ directory"
+        sudo rm -rf ./filesystem-wirtl/
+    fi
+    cp -r ./filesystem/ ./filesystem-wirtl/
+    cd ./filesystem-wirtl/
+    printgr "BUSYBOX-WIRTL" "create the device nodes"
+    sudoer "create the device nodes for BUSYBOX-WIRTL"
+    sudo mknod ./dev/console c 5 1
+    sudo mknod ./dev/null c 1 3
+    printgr "BUSYBOX-WIRTL" "copy the Realtek firmware files"
+    mkdir -p ./lib/firmware/rtl_nic/
+    cp ./../linux-firmware/rtl_nic/rtl816* ./lib/firmware/rtl_nic/
+    printgr "BUSYBOX-WIRTL" "give the ownership to root"
+    sudoer "give the ownership to root for BUSYBOX-WIRTL"
+    sudo chown -R root:root ./
+    printgr "BUSYBOX-WIRTL" "create a rootfs archive"
+    rm -f ./../rootfs-wirtl.cpio
+    rm -f ./../rootfs-wirtl.cpio.lzma
+    find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-wirtl.cpio
+    strip-nondeterminism -t cpio -T 1770768000 ./../rootfs-wirtl.cpio
+    xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-wirtl.cpio > ./../rootfs-wirtl.cpio.lzma
+    rm -f ./../rootfs-wirtl.cpio
+    cd ./../
+    printgr "BUSYBOX-WIRTL" "print a size of a rootfs archive"
+    ls -al ./rootfs-wirtl.cpio.lzma
+    printgr "BUSYBOX-WIRTL" "create a symbolic link"
+    rm -f "./rootfs-rtl.cpio.lzma"
+    ln -s "./rootfs-wirtl.cpio.lzma" "./rootfs-rtl.cpio.lzma"
     return 0
 }
 
+# Generate the syslinux configs
 syslinux_config() {
     printgr "SYSLINUX" "generate a standard config file"
     rm -f  ./syslinux.cfg
@@ -522,46 +642,82 @@ EOF
     return 0
 }
 
+# Build a specific floppy version
 floppinux_build () {
-    printgr "FLOPPINUX" "create a floppy"
-    rm -f ./floppinux.img
-    dd if=/dev/zero of=./floppinux.img bs=1k count=2880
-    printgr "FLOPPINUX" "format a floppy"
-    mkdosfs -n FLOPPINUX ./floppinux.img
-    printgr "FLOPPINUX" "install a syslinux bootloader"
-    syslinux --install ./floppinux.img
-    printgr "FLOPPINUX" "mount a floppy"
-    sudo rm -rf /temp_mnt
-    sudo mkdir /temp_mnt
-    sudo mount -o loop ./floppinux.img /temp_mnt
-    df -B 1
-    printgr "FLOPPINUX" "fill a floppy"
-    printgr "FLOPPINUX" "copy a Linux kernel"
-    ls -al ./bzImage
-    sudo cp ./linux/arch/x86/boot/bzImage /temp_mnt
-    df -B 1
-    printgr "FLOPPINUX" "copy a rootfs filesystem"
-    ls -al ./rootfs.cpio.lzma
-    sudo cp ./rootfs.cpio.lzma /temp_mnt/rfscpiol.zma
-    df -B 1
-    printgr "FLOPPINUX" "copy a syslinux config file"
-    sudo cp ./syslinux.cfg /temp_mnt
-    df -B 1
-    printgr "FLOPPINUX" "unmount a floppy"
-    sudo umount /temp_mnt
-    sudo rm -rf /temp_mnt
-    printgr "FLOPPINUX" "print a sha256sum of a floppy"
-    sha256sum ./floppinux.img
+    if [ -z "$1" ] ; then
+        printf "\n${bred}ERROR${bend}: floppy version is not specified !\n"
+        encontinue
+        return 1
+    else
+        case "$1" in
+            *"ath"*|*"pcn"*|*"rtl"*)
+                printgr "FLOPPINUX-$1" "create a floppy"
+                rm -f ./flpnx$1.img
+                dd if=/dev/zero of=./flpnx$1.img bs=1k count=2880
+                printgr "FLOPPINUX-$1" "format a floppy"
+                mkdosfs -n FLOPPINUX ./flpnx$1.img
+                printgr "FLOPPINUX-$1" "install a syslinux bootloader"
+                syslinux --install ./flpnx$1.img
+                printgr "FLOPPINUX-$1" "re-create a /temp_mnt mount point"
+                if [ -d "/temp_mnt" ] ; then
+                    sudoer "remove a /temp_mnt mount point"
+                    sudo rm -rf /temp_mnt
+                fi
+                sudoer "create a /temp_mnt mount point"
+                sudo mkdir /temp_mnt
+                printgr "FLOPPINUX-$1" "mount a floppy"
+                sudoer "mount a ./flpnx$1.img floppy"
+                sudo mount -o loop ./flpnx$1.img /temp_mnt
+                df -B 1
+                printgr "FLOPPINUX-$1" "fill a floppy"
+                printgr "FLOPPINUX-$1" "copy a Linux kernel"
+                ls -alL ./bzImage-$1
+                sudoer "copy a Linux kernel to ./flpnx$1.img"
+                sudo cp ./bzImage-$1 /temp_mnt/bzImage
+                df -B 1
+                printgr "FLOPPINUX-$1" "copy a rootfs filesystem"
+                ls -alL ./rootfs-$1.cpio.lzma
+                sudoer "copy a rootfs filesystem to ./flpnx$1.img"
+                sudo cp ./rootfs-$1.cpio.lzma /temp_mnt/rfscpiol.zma
+                df -B 1
+                printgr "FLOPPINUX-$1" "copy a syslinux config file"
+                sudoer "copy a syslinux config file to ./flpnx$1.img"
+                sudo cp ./syslinux.cfg /temp_mnt
+                df -B 1
+                printgr "FLOPPINUX-$1" "unmount a floppy"
+                sudoer "unmount a ./flpnx$1.img floppy"
+                sudo umount /temp_mnt
+                sudoer "remove a /temp_mnt mount point"
+                sudo rm -rf /temp_mnt
+                printgr "FLOPPINUX-$1" "print a sha256sum of a floppy"
+                sha256sum ./flpnx$1.img
+                ;;
+            *)
+                printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} floppy version !\n\n"
+                exit 1
+                ;;
+        esac
+    fi
     return 0
 }
 
+# Print a '$1' notification message of what we need to do with sudo rights and try to elevate the privileges.
+sudoer () {
+    printye "SUDOER" "I need to $1"
+    while [ ! -f "/home/artix/temp.sudo" ] ; do
+        sudo touch /home/artix/temp.sudo
+    done
+    sudo rm -f /home/artix/temp.sudo
+}
+
 commands_check
-sudo ls
-printgr "MY-FLOPPY-DISTRO" "remove the old directory if it exists"
-sudo rm -rf /home/artix/my-floppy-distro/
+printgr "MY-FLOPPY-DISTRO" "build started"
+if [ -d "/home/artix/my-floppy-distro/" ] ; then
+    sudoer "remove the old /home/artix/my-floppy-distro/ directory"
+    sudo rm -rf /home/artix/my-floppy-distro/
+fi
 mkdir /home/artix/my-floppy-distro/
 cd /home/artix/my-floppy-distro/
-printgr "MY-FLOPPY-DISTRO" "build started"
 musl_get
 linux_build
 dropbear_build
@@ -571,9 +727,13 @@ firmware_get
 kirc_build
 busybox_build
 syslinux_config
-floppinux_build
+floppinux_build "ath"
+floppinux_build "pcn"
+floppinux_build "rtl"
 printgr "MY-FLOPPY-DISTRO" "build completed"
 cd ./../
+
+
 
 exit 0
 #

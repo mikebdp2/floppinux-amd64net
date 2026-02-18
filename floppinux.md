@@ -1,7 +1,7 @@
 # FLOPPINUX - An Embedded 🐧Linux on a Single 💾Floppy
 ## 2026 Edition (v0.3.1-amd64net)
 
-- v0.3.1-amd64net - **February 16, 2026**
+- v0.3.1-amd64net - **February 18, 2026**
 - v0.3.1 - **December 21, 2025**
 - v0.3.0 - **October 19, 2025**
 
@@ -625,7 +625,9 @@ Choose the following options. Remember to **do not uncheck** anything if not sta
   - chmod: CONFIG_CHMOD
   - cp: CONFIG_CP
   - date: CONFIG_DATE
+    - Disable "Support weird 'date MMDDhhmm[[YY]YY][.ss]' format": CONFIG_FEATURE_DATE_COMPAT
   - df: CONFIG_DF
+    - Disable "Skip rootfs in mount table": CONFIG_FEATURE_SKIP_ROOTFS
   - echo: CONFIG_ECHO
   - ln: CONFIG_LN
   - ls: CONFIG_LS
@@ -650,6 +652,7 @@ Choose the following options. Remember to **do not uncheck** anything if not sta
   - lsusb: CONFIG_LSUSB
   - lspci: CONFIG_LSPCI
   - mdev: CONFIG_MDEV
+    - Disable "Support regular expressions substitutions when renaming device": CONFIG_FEATURE_MDEV_RENAME_REGEXP
   - mount: CONFIG_MOUNT
     - Support lots of -o flags: CONFIG_FEATURE_MOUNT_FLAGS
     - **uncheck** everything else
@@ -695,7 +698,7 @@ sed -i "s|.*CONFIG_CROSS_COMPILER_PREFIX.*|CONFIG_CROSS_COMPILER_PREFIX=\"/home/
 
 sed -i "s|.*CONFIG_SYSROOT.*|CONFIG_SYSROOT=\"/home/artix/my-floppy-distro/x86_64-linux-musl-cross\"|" ./.config
 
-sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=\"-I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fno-plt -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels\"|" ./.config
+sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=\"-I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie\"|" ./.config
 
 sed -i "s|.*CONFIG_EXTRA_LDFLAGS.*|CONFIG_EXTRA_LDFLAGS=\"-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--fatal-warnings -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie\"|" ./.config
 ```

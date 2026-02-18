@@ -487,47 +487,30 @@ mount --bind /mnt/data /home
 clear
 cat ./welcome
 cd /home/
-udhcpc -i eth0 -q &
+mdev -d &
+# The simplest approach - run DHCP on everything except loopback
+echo "Starting DHCP clients on all network interfaces..."
+for netdev in \$(ls /sys/class/net/) ; do
+    if [ "\$netdev" != "lo" ]; then
+        echo "    Starting DHCP client on: \$netdev"
+        # Bring interface up (ignore errors for virtual interfaces)
+        ifconfig \$netdev up 2>/dev/null
+        # Start DHCP - will work when connectivity becomes available
+        udhcpc -i \$netdev -s /etc/udhcpc.sh -b > /dev/null 2>&1 &
+    fi
+done
+echo "udhcpc DHCP clients are running in the background, and will autoconfig their interfaces when:"
+echo "- Ethernet cable is plugged in"
+echo "- PCIe WiFi associates with an access point"
+echo "But for WiFi USB after wpa_supplicant/wpa_cli setup - you will have to run:"
+echo "    udhcpc -i wlanXXX -s /etc/udhcpc.sh -b > /dev/null 2>&1 &"
+echo "    wpa_supplicant -B -i wlanXXX -c /etc/wpa_supplicant.conf"
+echo "    wpa_cli"
+echo "    scan, scan_results, add_network, set_network 0 ssid \"NetworkName\""
+echo "    set_network 0 psk \"Password\", enable_network 0, save_config, quit"
 /usr/bin/setsid /bin/cttyhack /bin/sh
 EOF
     chmod +x ./etc/init.d/rc
-    printgr "BUSYBOX" "create the udhcpc script"
-    rm -f  ./etc/udhcpc.sh
-    cat >> ./etc/udhcpc.sh << EOF
-#!/bin/sh
-case "\$1" in
-    bound|renew)
-        # Apply the IP address and subnet mask
-        ifconfig \$interface \$ip netmask \$subnet up
-        
-        # Set default gateway if provided
-        if [ -n "\$router" ]; then
-            # Remove any existing default route
-            route del default 2>/dev/null
-            # Add new default route (use first router if multiple)
-            for gw in \$router; do
-                route add default gw \$gw dev \$interface
-                break
-            done
-        fi
-        
-        # Set DNS servers if provided
-        if [ -n "\$dns" ]; then
-            echo -n > /etc/resolv.conf
-            for ns in \$dns; do
-                echo "nameserver \$ns" >> /etc/resolv.conf
-            done
-        fi
-        ;;
-    deconfig)
-        # Clear configuration when interface goes down
-        ifconfig \$interface 0.0.0.0
-        ;;
-esac
-
-exit 0
-EOF
-    chmod +x ./etc/udhcpc.sh
     printgr "BUSYBOX" "create the wpa_supplicant config"
     rm -f  ./etc/wpa_supplicant.conf
     cat >> ./etc/wpa_supplicant.conf << EOF
@@ -542,6 +525,49 @@ chmod +x ./repo.sh
 ./repo.sh
 EOF
     chmod +x ./etc/get_repo.sh
+    printgr "BUSYBOX" "create the udhcpc script"
+    rm -f  ./etc/udhcpc.sh
+    cat >> ./etc/udhcpc.sh << EOF
+#!/bin/sh
+case "\$1" in
+    "bound"|"renew")
+        # Apply the IP address and subnet mask
+        ifconfig \$interface \$ip netmask \$subnet up
+        
+        # Set default gateway if provided
+        if [ -n "\$router" ] ; then
+            # Remove any existing default route
+            while route del default 2>/dev/null; do :; done
+            # Add new default route (use first router if multiple)
+            for gw in \$router; do
+                route add default gw \$gw dev \$interface
+                break
+            done
+        fi
+        
+        # Set DNS servers if provided
+        if [ -n "\$dns" ] ; then
+            # Write all DNS servers at once (atomic)
+            {
+                for ns in \$dns; do
+                    echo "nameserver \$ns"
+                done
+                echo  # Ensure trailing newline
+            } > /etc/resolv.conf
+        fi
+        ;;
+    "deconfig")
+        # Clear configuration when interface goes down
+        ifconfig \$interface 0.0.0.0
+        ;;
+    *)
+        echo "udhcpc unsupported case \$1"
+        ;;
+esac
+
+exit 0
+EOF
+    chmod +x ./etc/udhcpc.sh
     printgr "BUSYBOX" "copy the external files"
     cp ./../dropbear/dbclient ./usr/bin/dbclient
     cp ./../dropbear/scp ./usr/bin/scp
@@ -732,8 +758,6 @@ floppinux_build "pcn"
 floppinux_build "rtl"
 printgr "MY-FLOPPY-DISTRO" "build completed"
 cd ./../
-
-
 
 exit 0
 #

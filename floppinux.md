@@ -663,6 +663,7 @@ Choose the following options. Remember to **do not uncheck** anything if not sta
   - **uncheck** readahead: CONFIG_READAHEAD
 - Networking Utilities
   - ifconfig: CONFIG_IFCONFIG
+    - Disable "Enable slip-specific options "keepalive" and "outfill"": CONFIG_FEATURE_IFCONFIG_SLIP
   - ifplugd: CONFIG_IFPLUGD
   - ping: CONFIG_PING
   - route: CONFIG_ROUTE

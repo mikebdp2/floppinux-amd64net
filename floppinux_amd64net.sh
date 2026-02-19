@@ -24,7 +24,7 @@
 byellow="\e[1;33m"
    bend="\e[0m"
 # Reproducible builds
-TOUCHER_ENABLED="0"
+TOUCHER_ENABLED="1"
 # Epoch value needs to have a lot of zeroes in a hexadecimal format, i.e. 1770094592
 EPOCH_TIME="0"
 TOUCH_TIME=$(date -u -d @$EPOCH_TIME +%Y%m%d%H%M.%S)

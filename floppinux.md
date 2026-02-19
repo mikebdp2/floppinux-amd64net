@@ -106,7 +106,7 @@ cd ./artix/
 Install needed software/libs. On Artix:
 
 ```bash
-sudo pacman -S bc binutils bison cmake cmocka coreutils cpio curl dosfstools flex gcc git m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
+sudo pacman -S bc binutils bison cmake cmocka coreutils cpio curl dosfstools flex gcc git m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib
 ```
 
 Also, after fully upgrading the system with `pacman -Suy`, I downgrade some packages including GCC to avoid the possible problems I have encountered at other places:

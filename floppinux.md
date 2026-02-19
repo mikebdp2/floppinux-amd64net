@@ -52,8 +52,6 @@ Also, I have fixed many bugs like a frozen ping _(had to enable timer-related fe
 - [Main Project Goals](#main-project-goals)
 - [Core Features](#core-features)
 - [Linux Kernel](#linux-kernel)
-- [64-bit Base OS](#64-bit-base-os)
-- [Working Directory](#working-directory)
 - [Host OS Requirements](#host-os-requirements)
 - [System Requirements](#system-requirements)
 - [Emulation](#emulation)
@@ -214,48 +212,12 @@ git add .
 git commit -m "Upgrade the sources to -Oz optimization"
 ```
 
-Disable the microcode loading and networking selftests:
-
-```bash
-cat >> ./linux.patch << EOF
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index a3700766a..7da1171b0 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1318,7 +1318,7 @@ config X86_REBOOTFIXUPS
- 	  Say N otherwise.
- 
- config MICROCODE
--	def_bool y
-+	def_bool n
- 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
- 	select CRYPTO_LIB_SHA256 if CPU_SUP_AMD
- 
-diff --git a/net/Kconfig b/net/Kconfig
-index 1d3f757d4..1560517af 100644
---- a/net/Kconfig
-+++ b/net/Kconfig
-@@ -476,8 +476,8 @@ config NET_IEEE8021Q_HELPERS
- 	bool
- 
- config NET_SELFTESTS
--	def_tristate PHYLIB
--	depends on PHYLIB && INET
-+	bool
-+	default n
- 
- config NET_SOCK_MSG
- 	bool
-EOF
-patch -p1 < ./linux.patch
-```
-
+Disable the microcode loading and networking selftests - see a linux.patch
 Now, lets configure and build our custom kernel. First create tiniest base configuration:
 
 ```bash
 make ARCH="x86_64" tinyconfig
 ```
-
 > This is a bootstrap with absolute minimum features. Just enough to boot the system. We want a little bit more.
 
 Add additonal config settings on top of it:
@@ -433,123 +395,23 @@ cd ./../
 
 ## Dropbear
 
-```bash
-git clone --depth=1 --branch DROPBEAR_2025.89 https://github.com/mkj/dropbear.git
-cd ./dropbear/
-make clean
-make distclean
-export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-./configure --host=x86_64-linux-musl --prefix=/usr --enable-static --disable-zlib --disable-syslog --disable-lastlog --disable-utmp --disable-utmpx --disable-wtmp --disable-wtmpx --disable-shadow --enable-bundled-libtom --disable-openpty --disable-loginfunc --disable-pututline --disable-pututxline --without-pam --disable-plugin CC='/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc' \
-CFLAGS='-DDROPBEAR_ECDSA=0 -DDROPBEAR_ECDH=0 -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fno-plt -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross' \
-LDFLAGS='-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/x86_64-linux-musl/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross'
-make CC="$CC" PROGRAMS="dbclient" dbclient scp
-unset CC
-sstrip ./dbclient
-sstrip ./scp
-ls -al ./dbclient
-ls -al ./scp
-cd ./../
-```
+See a script
 
 ## WPA Supplicant
 
-libnl-tiny
-
-```bash
-git clone --depth=1 https://github.com/openwrt/libnl-tiny.git
-cd ./libnl-tiny/
-wget https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/libnl-tiny.patch
-patch -p1 < ./libnl-tiny.patch
-rm -rf ./build/
-mkdir ./build/
-cd ./build/
-cmake -DCMAKE_INSTALL_PREFIX=/home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/ ..
-make
-make install
-cd ./../
-rm -rf ./build-tc/
-mv ./build/ ./build-tc/
-mkdir ./build/
-cd ./build/
-cmake -DCMAKE_INSTALL_PREFIX=/usr/ ..
-make
-sudo make install
-cd ./../
-rm -rf ./build-rt/
-mv ./build/ ./build-rt/
-wget https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/libnl-tiny_ucred.patch
-cd ./../
-cd /usr/include/libnl-tiny/
-sudo patch -p1 < /home/artix/my-floppy-distro/libnl-tiny/libnl-tiny_ucred.patch
-cd /home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/include/libnl-tiny/
-patch -p1 < /home/artix/my-floppy-distro/libnl-tiny/libnl-tiny_ucred.patch
-cd /home/artix/my-floppy-distro/
-```
-
-wpa_supplicant
-
-```bash
-git clone --depth=1 --branch hostap_2_11 https://git.w1.fi/hostap.git
-cd ./hostap/
-wget --output-document=./wpa_libs.patch https://git.w1.fi/cgit/hostap/patch/?id=c13c7b6a1db3361dccc146719f0c676bc975af2e
-patch -p1 < ./wpa_libs.patch
-wget https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_makefile.patch
-patch -p1 < ./wpa_makefile.patch
-wget https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/wpa_supplicant.cfg
-mv ./wpa_supplicant.cfg ./wpa_supplicant/.config
-cd ./wpa_supplicant/
-export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-make clean && make CC="$CC" wpa_supplicant wpa_cli
-unset CC
-sstrip ./wpa_supplicant
-sstrip ./wpa_cli
-ls -al ./wpa_supplicant
-ls -al ./wpa_cli
-cd ./../../
-```
+First we build libnl-tiny, then a wpa_supplicant/wpa_cli. See a script
 
 ## KIRC
 
-```bash
-git clone --depth=1 --branch 1.2.2 https://github.com/mcpcpc/kirc.git
-cd ./kirc/
-wget https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/kirc.patch
-patch -p1 < ./kirc.patch
-export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-make clean && make CC="$CC"
-unset CC
-sstrip ./kirc
-ls -al ./kirc
-man ./kirc.1 > ./kirc.txt
-cd ./../
-```
+See a script
 
 ## Linux Firmware
 
-```bash
-git clone --depth=1 https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git
-```
+See a script
 
 ## Busybox Toolset
 
-Without tools kernel will just boot and you will not be able to do anything. One of the most popular lightweight tools is BusyBox. It replaces the standard GNU utilities with way smaller but still functional alternatives, perfect for embedded needs.
-
-Get the **1.37.0** version from busybox.net or Github mirror. Download the file, extract it, and change directory:
-
-> Remember to be in the working directory.
-
-```bash
-git clone --depth=1 --branch 1_37_stable https://git.busybox.net/busybox.git
-```
-
-After switching to a `./busybox/` directory, replace the O2 optimization flags with -Os for a size optimization: _(musl.cc toolchain's GCC is too old for -Oz)_
-
-```bash
-cd ./busybox/
-mv ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
-find . -type f -print0 | xargs -0 sed -i -e "s/-O2/-Os/g"
-mv ./../temp.git/ ./.git/
-```
+Without tools kernel will just boot and you will not be able to do anything. One of the most popular lightweight tools is BusyBox. It replaces the standard GNU utilities with way smaller but still functional alternatives, perfect for embedded needs. Get the **1.37.0** version from busybox.net or Github mirror. We will replace the O2 optimization flags with -Os for a size optimization: _(musl.cc toolchain's GCC is too old for -Oz)_
 
 As with kernel you need to create starting configuration:
 
@@ -662,19 +524,10 @@ Now exit with save config.
 
 ### Cross Compiler Setup
 
+
 > Our target system needs to be 64-bit MUSL. To compile it on 64-bit no-MUSL system we need a cross compiler. You can setup this by hand in the menuconfig or just copy and paste those four lines.
 
-Setup paths:
-
-```bash
-sed -i "s|.*CONFIG_CROSS_COMPILER_PREFIX.*|CONFIG_CROSS_COMPILER_PREFIX=\"/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-\"|" ./.config
-
-sed -i "s|.*CONFIG_SYSROOT.*|CONFIG_SYSROOT=\"/home/artix/my-floppy-distro/x86_64-linux-musl-cross\"|" ./.config
-
-sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=\"-I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie\"|" ./.config
-
-sed -i "s|.*CONFIG_EXTRA_LDFLAGS.*|CONFIG_EXTRA_LDFLAGS=\"-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--fatal-warnings -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie\"|" ./.config
-```
+See the four seds at a script
 
 ### Compile BusyBox
 
@@ -684,12 +537,7 @@ Build tools and create base filesystem ("install"). It will ask for options, jus
 make ARCH="x86_64" clean && make ARCH="x86_64" -j$(nproc) && sstrip ./busybox && make ARCH="x86_64" install
 ```
 
-This will create a filesystem with all the files at `./_install/`. Move it to our main directory with renaming and go to it.
-
-```bash
-mv ./_install/ ./../filesystem
-cd ./../filesystem/
-```
+This will create a filesystem with all the files at `./_install/`. Move it to our main ./../filesystem/ directory with renaming and go to it.
 
 ## Filesystem
 

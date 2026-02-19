@@ -521,7 +521,7 @@ busybox_build () {
     mkdir -p {./dev/,./proc/,./etc/init.d/,./sys/,./tmp/,./home/,./var/run/,./lib/firmware/ath9k_htc/}
         toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX" "wget a welcome message"
-    # wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
+    wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
         toucher_file "$TOUCH_TIME" "./welcome"
     printgr "BUSYBOX" "create an inittab file"
     rm -f  ./etc/inittab

@@ -24,7 +24,8 @@
 byellow="\e[1;33m"
    bend="\e[0m"
 # Reproducible builds
-EPOCH_TIME="1770000000"
+# Epoch value has a lot of zeroes in a hexadecimal format
+EPOCH_TIME="1770094592"
 TOUCH_TIME=$(date -u -d @$EPOCH_TIME +%Y%m%d%H%M.%S)
 export SOURCE_DATE_EPOCH="$EPOCH_TIME"
 export TZ="UTC"

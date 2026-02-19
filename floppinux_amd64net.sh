@@ -23,7 +23,14 @@
  bgreen="\e[1;32m"
 byellow="\e[1;33m"
    bend="\e[0m"
- 
+# Reproducible builds
+EPOCH_TIME="1770000000"
+TOUCH_TIME=$(date -u -d @$EPOCH_TIME +%Y%m%d%H%M.%S)
+export SOURCE_DATE_EPOCH="$EPOCH_TIME"
+export TZ="UTC"
+export LC_ALL="C"
+export LANG="C"
+
 # Waits until a user presses Enter.
 encontinue () {
     printf "\npress [ENTER] to continue... "
@@ -75,6 +82,7 @@ commands_check () {
        ! command_exists "strip" "binutils" || \
        ! command_exists "sstrip" "elfkickers" || \
        ! command_exists "strip-nondeterminism" "strip-nondeterminism" || \
+       ! command_exists "sudo" "sudo" || \
        ! command_exists "syslinux" "syslinux" || \
        ! command_exists "wget" "wget" ; then
         exit 1
@@ -171,6 +179,15 @@ git_clone_check () {
     fi
 }
 
+# Changes the files/dirs modification time to '$1', also in a "sudo" mode if '$2' argument is set to "sudo".
+toucher () {
+    if [ "$2" = "sudo" ]; then
+        TZ="UTC" LC_ALL="C" LANG="C" find . -print0 | sudo env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
+    else
+        TZ="UTC" LC_ALL="C" LANG="C" find . -print0 | env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
+    fi
+}
+
 # MUSL toolchain
 musl_get () {
     printgr "MUSL" "remove the old directory if it exists"
@@ -198,13 +215,16 @@ linux_build_ver () {
                 wgetter "./linux-$1.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux-$1.cfg"
                 mover "./linux-$1.cfg" "./.config"
                 printgr "LINUX-$1" "build the source code"
-                make ARCH="x86_64" bzImage -j$(nproc)
+                    toucher "$TOUCH_TIME"
+                make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" bzImage -j$(nproc)
+                    toucher "$TOUCH_TIME"
                 printgr "LINUX-$1" "print a size of a kernel"
                 ls -al ./arch/x86_64/boot/bzImage
                 cd ./../
                 printgr "LINUX-$1" "create a symbolic link"
                 rm -f "./bzImage-$1"
                 ln -s "./linux-$1/arch/x86_64/boot/bzImage" "./bzImage-$1"
+                    touch -h -t "$TOUCH_TIME" "./bzImage-$1"
                 ;;
             *)
                 printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} kernel version !\n\n"
@@ -267,11 +287,15 @@ dropbear_build () {
     LDFLAGS='-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/x86_64-linux-musl/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross'
     printgr "DROPBEAR" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-    make CC="$CC" PROGRAMS="dbclient" dbclient scp -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" PROGRAMS="dbclient" dbclient scp -j$(nproc)
+        toucher "$TOUCH_TIME"
     unset CC
     printgr "DROPBEAR" "sstrip the binaries"
     sstrip ./dbclient
+        touch -h -t "$TOUCH_TIME" "./dbclient"
     sstrip ./scp
+        touch -h -t "$TOUCH_TIME" "./scp"
     printgr "DROPBEAR" "print the sizes of binaries"
     ls -al ./dbclient
     ls -al ./scp
@@ -298,9 +322,11 @@ libnl_build () {
     printgr "LIBNL-TINY" "configure the source code for toolchain directory installation"
     cmake -DCMAKE_INSTALL_PREFIX=/home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/ ..
     printgr "LIBNL-TINY" "build the source code"
-    make -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
+        toucher "$TOUCH_TIME"
     printgr "LIBNL-TINY" "install the library to a toolchain directory"
-    make install
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
     cd ./../
     mover ./build/ ./build-tc/
     mkdir ./build/
@@ -308,10 +334,12 @@ libnl_build () {
     printgr "LIBNL-TINY" "configure the source code for host OS directory installation"
     cmake -DCMAKE_INSTALL_PREFIX=/usr/ ..
     printgr "LIBNL-TINY" "build the source code"
-    make -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
+        toucher "$TOUCH_TIME"
     printgr "LIBNL-TINY" "install the library to a host OS directory"
     sudoer "install the LIBNL-TINY library to a host OS directory"
-    sudo make install
+    sudo make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
     cd ./../
     mover ./build/ ./build-rt/
     printgr "LIBNL-TINY" "patch to fix ucred structure for external usage by wpa_supplicant"
@@ -354,11 +382,13 @@ wpa_build () {
     cd ./wpa_supplicant/
     printgr "WPA_SUPPLICANT" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-    make clean
-    make CC="$CC" wpa_supplicant -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" wpa_supplicant -j$(nproc)
+        toucher "$TOUCH_TIME"
     unset CC
     printgr "WPA_SUPPLICANT" "sstrip the binary"
     sstrip ./wpa_supplicant
+        touch -h -t "$TOUCH_TIME" "./wpa_supplicant"
     printgr "WPA_SUPPLICANT" "print a size of a binary"
     ls -al ./wpa_supplicant
     cd ./../../wpa_cli/
@@ -368,11 +398,13 @@ wpa_build () {
     cd ./wpa_supplicant/
     printgr "WPA_CLI" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-    make clean
-    make CC="$CC" wpa_cli -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" wpa_cli -j$(nproc)
+        toucher "$TOUCH_TIME"
     unset CC
     printgr "WPA_CLI" "sstrip the binary"
     sstrip ./wpa_cli
+        touch -h -t "$TOUCH_TIME" "./wpa_cli"
     printgr "WPA_CLI" "print a size of a binary"
     ls -al ./wpa_cli
     cd ./../../
@@ -406,15 +438,18 @@ kirc_build () {
     patch -p1 < "./kirc.patch"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     printgr "KIRC" "build the source code"
-    make clean
-    make CC="$CC" -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
+        toucher "$TOUCH_TIME"
     unset CC
     printgr "KIRC" "sstrip a binary"
     sstrip ./kirc
+        touch -h -t "$TOUCH_TIME" "./kirc"
     printgr "KIRC" "print a size of a binary"
     ls -al ./kirc
     printgr "KIRC" "generate a user manual"
     man ./kirc.1 > ./kirc.txt
+        touch -h -t "$TOUCH_TIME" "./kirc.txt"
     cd ./../
     return 0
 }
@@ -447,21 +482,28 @@ busybox_build () {
     sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=\"-I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie\"|" ./.config
     sed -i "s|.*CONFIG_EXTRA_LDFLAGS.*|CONFIG_EXTRA_LDFLAGS=\"-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--fatal-warnings -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie\"|" ./.config
     printgr "BUSYBOX" "build the source code"
-    make ARCH="x86_64" clean
-    make ARCH="x86_64" -j$(nproc)
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
+        toucher "$TOUCH_TIME"
     printgr "BUSYBOX" "sstrip a binary"
     sstrip ./busybox
+        touch -h -t "$TOUCH_TIME" "./busybox"
     ls -al ./busybox
     printgr "BUSYBOX" "generate the initial filesystem"
     rm -rf ./_install/
-    make ARCH="x86_64" install
+        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
+        toucher "$TOUCH_TIME"
     rm -rf ./../filesystem/
     cp -r ./_install/ ./../filesystem/
     cd ./../filesystem/
-    printgr "BUSYBOX" "create the filesytem directories"
+        toucher "$TOUCH_TIME"
+    printgr "BUSYBOX" "create the filesystem directories"
     mkdir -p {./dev/,./proc/,./etc/init.d/,./sys/,./tmp/,./home/,./var/run/,./lib/firmware/ath9k_htc/}
+        toucher "$TOUCH_TIME"
     printgr "BUSYBOX" "wget a welcome message"
     wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
+        touch -h -t "$TOUCH_TIME" "./welcome"
     printgr "BUSYBOX" "create an inittab file"
     rm -f  ./etc/inittab
     cat >> ./etc/inittab << EOF
@@ -472,6 +514,7 @@ busybox_build () {
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/bin/umount -a -r
 EOF
+        touch -h -t "$TOUCH_TIME" "./etc/inittab"
     printgr "BUSYBOX" "create the init rc script"
     rm -f  ./etc/init.d/rc
     cat >> ./etc/init.d/rc << EOF
@@ -488,35 +531,121 @@ clear
 cat ./welcome
 cd /home/
 mdev -d &
-# The simplest approach - run DHCP on everything except loopback
-echo "Starting DHCP clients on all network interfaces..."
-for netdev in \$(ls /sys/class/net/) ; do
-    if [ "\$netdev" != "lo" ]; then
-        echo "    Starting DHCP client on: \$netdev"
-        # Bring interface up (ignore errors for virtual interfaces)
-        ifconfig \$netdev up 2>/dev/null
-        # Start DHCP - will work when connectivity becomes available
-        udhcpc -i \$netdev -s /etc/udhcpc.sh -b > /dev/null 2>&1 &
+
+clear_iface() {
+ local iface=\$1
+ [ -z "\$iface" ] && return 1
+ ifconfig "\$iface" down 2>/dev/null
+ # Parse route table
+ route -n 2>/dev/null | while read dest gw mask flags metric ref use curiface; do
+  # Skip headers
+  case "\$dest" in "Destination"|"Kernel"*|"") continue ;; esac
+   # Route belongs to our iface?
+  [ "\$curiface" = "\$iface" ] || continue
+  if [ "\$dest" = "0.0.0.0" ]; then
+   # Del default route
+   route del default dev "\$iface" 2>/dev/null
+  else
+   # Setup route, only if dest~=IP
+   case "\$dest" in *.*.*.*)
+    route del -net "\$dest" netmask "\$mask" dev "\$iface" 2>/dev/null
+   ;; esac
+  fi
+ done
+ ifconfig "\$iface" down 2>/dev/null
+ ifconfig "\$iface" 0.0.0.0 2>/dev/null
+}
+
+monitor_link() {
+ local iface=\$1
+ local last_status=""
+ local pid_file="/var/run/udhcpc-\$iface.pid"
+ local carrier_file="/sys/class/net/\$iface/carrier"
+ [ -z "\$iface" ] && return 1
+ while true; do
+  # iface still exists?
+  [ ! -d "/sys/class/net/\$iface" ] && {
+   # rm pid if gone
+   [ -f "\$pid_file" ] && rm -f "\$pid_file"
+   break
+  }
+  [ -f "\$carrier_file" ] || { sleep 1; continue; }
+  current_status=\$(cat "\$carrier_file" 2>/dev/null) || { sleep 1; continue; }
+  [ -n "\$current_status" ] || { sleep 1; continue; }
+  [ "\$current_status" = "\$last_status" ] && { sleep 1; continue; }
+  case "\$current_status" in
+   1*)
+    echo "  Link detected on \$iface"
+    # Start udhcpc if not running
+    if [ ! -f "\$pid_file" ] || ! kill -0 \$(cat "\$pid_file" 2>/dev/null) 2>/dev/null; then
+     udhcpc -i "\$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+     echo \$! > "\$pid_file"
     fi
+   ;;
+   0*)
+    echo "  Link lost on \$iface"
+    # Kill udhcpc if running
+    [ -f "\$pid_file" ] && {
+     kill \$(cat "\$pid_file" 2>/dev/null) 2>/dev/null
+     rm -f "\$pid_file"
+    }
+    clear_iface "\$iface"
+   ;;
+  esac
+  last_status="\$current_status"
+  sleep 1
+ done
+}
+
+monitor_wireless_hotplug() {
+ local wireless_handled_dir="/var/run/wireless-handled"
+ mkdir -p "\$wireless_handled_dir" 2>/dev/null
+ echo "Start WiFi hotplug monitor..."
+ while true; do
+  for netdev in \$(ls --color=never /sys/class/net/ 2>/dev/null); do
+   case "\$netdev" in wlan*)
+    # Handled Y/N?
+    [ -f "\$wireless_handled_dir/\$netdev" ] && continue
+    echo "  New WiFi dev detected: \$netdev"
+    echo "handled" > "\$wireless_handled_dir/\$netdev"
+    ifconfig \$netdev up 2>/dev/null
+    [ -f /etc/wpa_supplicant.conf ] && wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
+    if [ -f "/sys/class/net/\$netdev/carrier" ] && [ "\$(cat "/sys/class/net/\$netdev/carrier" 2>/dev/null)" = "1" ]; then
+     udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+     echo \$! > "/var/run/udhcpc-\$netdev.pid"
+    fi
+    monitor_link \$netdev &
+   ;; esac
+  done
+  sleep 3
+ done
+}
+
+echo "Start udhcpc& on all netdevs..."
+for netdev in \$(ls --color=never /sys/class/net/); do
+ [ "\$netdev" = "lo" ] && continue
+ echo "  Start udhcpc on: \$netdev"
+ ifconfig \$netdev up 2>/dev/null
+ udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+ monitor_link \$netdev &
+ case "\$netdev" in wlan*)
+  echo "  Start wpa_supplicant on: \$netdev"
+  wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
+ ;; esac
 done
-echo "udhcpc DHCP clients are running in the background, and will autoconfig their interfaces when:"
-echo "- Ethernet cable is plugged in"
-echo "- PCIe WiFi associates with an access point"
-echo "But for WiFi USB after wpa_supplicant/wpa_cli setup - you will have to run:"
-echo "    udhcpc -i wlanXXX -s /etc/udhcpc.sh -b > /dev/null 2>&1 &"
-echo "    wpa_supplicant -B -i wlanXXX -c /etc/wpa_supplicant.conf"
-echo "    wpa_cli"
-echo "    scan, scan_results, add_network, set_network 0 ssid \"NetworkName\""
-echo "    set_network 0 psk \"Password\", enable_network 0, save_config, quit"
+monitor_wireless_hotplug &
+echo -e "udhcpc& autosetup their ifaces when: Eth plugged / WiFi connects (+ USB hotplug)\n\nManual WiFi (kill old proc 1st):\n  wpa_supplicant -B -i wlanXXX -c /etc/wpa_supplicant.conf ; wpa_cli -i wlanXXX :\n  scan, scan_results, add_network, scan, scan_results, add_network (prints N num),\n  set_network N ssid \"NAME\", set_network N psk \"PASS\", enable_network N,\n  save_config, quit ; udhcpc -i wlanXXX -s /etc/udhcpc.sh -b &"
 /usr/bin/setsid /bin/cttyhack /bin/sh
 EOF
     chmod +x ./etc/init.d/rc
+        touch -h -t "$TOUCH_TIME" "./etc/init.d/rc"
     printgr "BUSYBOX" "create the wpa_supplicant config"
     rm -f  ./etc/wpa_supplicant.conf
     cat >> ./etc/wpa_supplicant.conf << EOF
 ctrl_interface=/var/run/wpa_supplicant
 update_config=1
 EOF
+        touch -h -t "$TOUCH_TIME" "./etc/wpa_supplicant.conf"
     printgr "BUSYBOX" "create the get_repo.sh script"
     rm -f  ./etc/get_repo.sh
     cat >> ./etc/get_repo.sh << EOF
@@ -525,60 +654,65 @@ chmod +x ./repo.sh
 ./repo.sh
 EOF
     chmod +x ./etc/get_repo.sh
+        touch -h -t "$TOUCH_TIME" "./etc/get_repo.sh"
     printgr "BUSYBOX" "create the udhcpc script"
     rm -f  ./etc/udhcpc.sh
     cat >> ./etc/udhcpc.sh << EOF
 #!/bin/sh
 case "\$1" in
-    "bound"|"renew")
-        # Apply the IP address and subnet mask
-        ifconfig \$interface \$ip netmask \$subnet up
-        
-        # Set default gateway if provided
-        if [ -n "\$router" ] ; then
-            # Remove any existing default route
-            while route del default 2>/dev/null; do :; done
-            # Add new default route (use first router if multiple)
-            for gw in \$router; do
-                route add default gw \$gw dev \$interface
-                break
-            done
-        fi
-        
-        # Set DNS servers if provided
-        if [ -n "\$dns" ] ; then
-            # Write all DNS servers at once (atomic)
-            {
-                for ns in \$dns; do
-                    echo "nameserver \$ns"
-                done
-                echo  # Ensure trailing newline
-            } > /etc/resolv.conf
-        fi
-        ;;
-    "deconfig")
-        # Clear configuration when interface goes down
-        ifconfig \$interface 0.0.0.0
-        ;;
-    *)
-        echo "udhcpc unsupported case \$1"
-        ;;
+ "bound"|"renew")
+  # Set IP/subnet
+  ifconfig \$interface \$ip netmask \$subnet up
+  # Set gateway if provided
+  if [ -n "\$router" ]; then
+   # Remove existing default routes
+   while route del default 2>/dev/null; do :; done
+   # Add new default route (1st router if multiple)
+   for gw in \$router; do
+    route add default gw \$gw dev \$interface
+    break
+   done
+  fi
+  # Set DNS if provided
+  if [ -n "\$dns" ]; then
+   # Atomic write all DNS
+   { for ns in \$dns; do echo "nameserver \$ns"; done; echo; } > /etc/resolv.conf
+   fi
+  ;;
+  "deconfig")
+   # Lease expired? Clear IP
+   ifconfig \$interface 0.0.0.0
+   ;;
+  "leasefail")
+   echo "  DHCP lease failed on \$interface"
+  ;;
+  *)
+   echo "udhcpc unsupported case \$1"
+   ;;
 esac
-
 exit 0
 EOF
     chmod +x ./etc/udhcpc.sh
+        touch -h -t "$TOUCH_TIME" "./etc/udhcpc.sh"
     printgr "BUSYBOX" "copy the external files"
     cp ./../dropbear/dbclient ./usr/bin/dbclient
+        touch -h -t "$TOUCH_TIME" "./usr/bin/dbclient"
     cp ./../dropbear/scp ./usr/bin/scp
+        touch -h -t "$TOUCH_TIME" "./usr/bin/scp"
     cp ./../wpa_supplicant/wpa_supplicant/wpa_supplicant ./usr/bin/wpa_supplicant
+        touch -h -t "$TOUCH_TIME" "./usr/bin/wpa_supplicant"
     cp ./../wpa_cli/wpa_supplicant/wpa_cli ./usr/bin/wpa_cli
+        touch -h -t "$TOUCH_TIME" "./usr/bin/wpa_cli"
     cp ./../linux-firmware/ath9k_htc/htc_9271-1.4.0.fw ./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw
+        touch -h -t "$TOUCH_TIME" "./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw"
     ### cp ./../kirc/kirc /usr/bin/kirc
     ### cp ./../kirc/kirc.txt /etc/kirc.txt
     cd ./usr/bin/
     ln -s ./dbclient ./ssh
-    cd ./../../../
+        touch -h -t "$TOUCH_TIME" "./ssh"
+    cd ./../../
+        toucher "$TOUCH_TIME"
+    cd ./../
     printgr "BUSYBOX-NORTL" "create a directory"
     if [ -d "./filesystem-nortl/" ] ; then
         sudoer "remove the old /home/artix/my-floppy-distro/filesystem-nortl/ directory"
@@ -586,19 +720,27 @@ EOF
     fi
     cp -r ./filesystem/ ./filesystem-nortl/
     cd ./filesystem-nortl/
+        toucher "$TOUCH_TIME"
     printgr "BUSYBOX-NORTL" "create the device nodes"
     sudoer "create the device nodes for BUSYBOX-NORTL"
     sudo mknod ./dev/console c 5 1
     sudo mknod ./dev/null c 1 3
+        toucher "$TOUCH_TIME" "sudo"
     printgr "BUSYBOX-NORTL" "give the ownership to root"
     sudoer "give the ownership to root for BUSYBOX-NORTL"
     sudo chown -R root:root ./
+    printgr "BUSYBOX-NORTL" "change the files/dirs modification time"
+    sudoer "change the files/dirs modification time"
+        toucher "$TOUCH_TIME" "sudo"
     printgr "BUSYBOX-NORTL" "create a rootfs archive"
     rm -f ./../rootfs-nortl.cpio
     rm -f ./../rootfs-nortl.cpio.lzma
-    find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-nortl.cpio
-    strip-nondeterminism -t cpio -T 1770768000 ./../rootfs-nortl.cpio
+    LC_ALL="C" LANG="C" find . -print0 | LC_ALL="C" LANG="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-nortl.cpio
+        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio"
+    strip-nondeterminism -t cpio -T $EPOCH_TIME ./../rootfs-nortl.cpio
+        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio"
     xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-nortl.cpio > ./../rootfs-nortl.cpio.lzma
+        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio.lzma"
     rm -f ./../rootfs-nortl.cpio
     cd ./../
     printgr "BUSYBOX-NORTL" "print a size of a rootfs archive"
@@ -606,8 +748,10 @@ EOF
     printgr "BUSYBOX-NORTL" "create the symbolic links"
     rm -f "./rootfs-ath.cpio.lzma"
     ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-ath.cpio.lzma"
+        touch -h -t "$TOUCH_TIME" "./rootfs-ath.cpio.lzma"
     rm -f "./rootfs-pcn.cpio.lzma"
     ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-pcn.cpio.lzma"
+        touch -h -t "$TOUCH_TIME" "./rootfs-pcn.cpio.lzma"
     printgr "BUSYBOX-WIRTL" "create a directory"
     if [ -d "./filesystem-wirtl/" ] ; then
         sudoer "remove the old /home/artix/my-floppy-distro/filesystem-wirtl/ directory"
@@ -615,22 +759,36 @@ EOF
     fi
     cp -r ./filesystem/ ./filesystem-wirtl/
     cd ./filesystem-wirtl/
+        toucher "$TOUCH_TIME"
     printgr "BUSYBOX-WIRTL" "create the device nodes"
     sudoer "create the device nodes for BUSYBOX-WIRTL"
     sudo mknod ./dev/console c 5 1
     sudo mknod ./dev/null c 1 3
+        toucher "$TOUCH_TIME" "sudo"
     printgr "BUSYBOX-WIRTL" "copy the Realtek firmware files"
     mkdir -p ./lib/firmware/rtl_nic/
-    cp ./../linux-firmware/rtl_nic/rtl816* ./lib/firmware/rtl_nic/
+    LC_ALL="C" LANG="C" find ./../linux-firmware/rtl_nic/ -name "rtl816*" | \
+        LC_ALL="C" LANG="C" sort | while IFS= read -r file; do \
+            cp "$file" ./lib/firmware/rtl_nic/; \
+            cd ./lib/firmware/rtl_nic/; \
+                toucher "$TOUCH_TIME"; \
+            cd ./../../../; \
+        done
     printgr "BUSYBOX-WIRTL" "give the ownership to root"
     sudoer "give the ownership to root for BUSYBOX-WIRTL"
     sudo chown -R root:root ./
+    printgr "BUSYBOX-WIRTL" "change the files/dirs modification time"
+    sudoer "change the files/dirs modification time"
+        toucher "$TOUCH_TIME" "sudo"
     printgr "BUSYBOX-WIRTL" "create a rootfs archive"
     rm -f ./../rootfs-wirtl.cpio
     rm -f ./../rootfs-wirtl.cpio.lzma
-    find . -print0 | LC_ALL="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-wirtl.cpio
-    strip-nondeterminism -t cpio -T 1770768000 ./../rootfs-wirtl.cpio
+    LC_ALL="C" LANG="C" find . -print0 | LC_ALL="C" LANG="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-wirtl.cpio
+        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
+    strip-nondeterminism -t cpio -T $EPOCH_TIME ./../rootfs-wirtl.cpio
+        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
     xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-wirtl.cpio > ./../rootfs-wirtl.cpio.lzma
+        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio.lzma"
     rm -f ./../rootfs-wirtl.cpio
     cd ./../
     printgr "BUSYBOX-WIRTL" "print a size of a rootfs archive"
@@ -638,11 +796,12 @@ EOF
     printgr "BUSYBOX-WIRTL" "create a symbolic link"
     rm -f "./rootfs-rtl.cpio.lzma"
     ln -s "./rootfs-wirtl.cpio.lzma" "./rootfs-rtl.cpio.lzma"
+        touch -h -t "$TOUCH_TIME" "./rootfs-rtl.cpio.lzma"
     return 0
 }
 
 # Generate the syslinux configs
-syslinux_config() {
+syslinux_config () {
     printgr "SYSLINUX" "generate a standard config file"
     rm -f  ./syslinux.cfg
     cat >> ./syslinux.cfg << EOF
@@ -654,6 +813,7 @@ INITRD rfscpiol.zma
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 tsc=unstable
 EOF
     chmod +x ./syslinux.cfg
+        touch -h -t "$TOUCH_TIME" "./syslinux.cfg"
     printgr "SYSLINUX" "generate a debug config file"
     rm -f  ./syslinux_debug.cfg
     cat >> ./syslinux_debug.cfg << EOF
@@ -665,6 +825,7 @@ INITRD rfscpiol.zma
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 ignore_loglevel earlyprintk=tty0 loglevel=8 tsc=unstable
 EOF
     chmod +x ./syslinux_debug.cfg
+        touch -h -t "$TOUCH_TIME" "./syslinux_debug.cfg"
     return 0
 }
 
@@ -710,6 +871,11 @@ floppinux_build () {
                 sudoer "copy a syslinux config file to ./flpnx$1.img"
                 sudo cp ./syslinux.cfg /temp_mnt
                 df -B 1
+                printgr "FLOPPINUX-$1" "change the files/dirs modification time"
+                cd /temp_mnt
+                sudoer "change the files/dirs modification time"
+                    toucher "$TOUCH_TIME" "sudo"
+                cd /home/artix/my-floppy-distro/
                 printgr "FLOPPINUX-$1" "unmount a floppy"
                 sudoer "unmount a ./flpnx$1.img floppy"
                 sudo umount /temp_mnt

@@ -239,13 +239,13 @@ linux_build_ver () {
                     toucher_dir "$TOUCH_TIME" "./"
                 make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" bzImage -j$(nproc)
                     toucher_dir "$TOUCH_TIME" "./"
-                printgr "LINUX-$1" "print a size of a kernel"
-                ls -al ./arch/x86_64/boot/bzImage
                 cd ./../
                 printgr "LINUX-$1" "create a symbolic link"
                 rm -f "./bzImage-$1"
                 ln -s "./linux-$1/arch/x86_64/boot/bzImage" "./bzImage-$1"
                     toucher_file "$TOUCH_TIME" "./bzImage-$1"
+                printgr "LINUX-$1" "print a size of a kernel"
+                ls -alL ./bzImage-$1
                 ;;
             *)
                 printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} kernel version !\n\n"
@@ -317,6 +317,9 @@ dropbear_build () {
         toucher_file "$TOUCH_TIME" "./dbclient"
     sstrip ./scp
         toucher_file "$TOUCH_TIME" "./scp"
+    printgr "DROPBEAR" "create a symbolic link"
+    rm -f "./ssh"
+    ln -s "./dbclient" "./ssh"
     printgr "DROPBEAR" "print the sizes of binaries"
     ls -al ./dbclient
     ls -al ./scp
@@ -507,7 +510,6 @@ busybox_build () {
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
     printgr "BUSYBOX" "sstrip a binary"
     sstrip ./busybox
-        toucher_file "$TOUCH_TIME" "./busybox"
     ls -al ./busybox
     printgr "BUSYBOX" "generate the initial filesystem"
     rm -rf ./_install/

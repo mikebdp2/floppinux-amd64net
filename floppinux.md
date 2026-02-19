@@ -73,9 +73,18 @@ Also, I have fixed many bugs like a frozen ping _(had to enable timer-related fe
 
 Think of this as Linux From Scratch but for making single floppy distribution.
 
-> It is meant to be a full workshop (tutorial) that you can follow easily and modify it to your needs. It is a learning exercise. Some base Linux knowledge is needed.
 
-The final distribution is very simple and consists only of minimum of tools and hardware support. As a user you will be able to boot any PC with a floppy drive to a Linux terminal, edit files, and create simple scripts. There is 264KB of space left for your newly created files.
+**Original instructions were in a "workshop" format - however, since this distribution is more advanced and its building process is more complicated, I will direct you to ./floppinux-amd64net.sh if you want to learn/modify the internals (tried to keep it user-friendly) and will highlight below only the most interesting parts.**
+
+The final distribution is very simple and consists only of minimum of tools and hardware support. As a user you will be able to boot a coreboot-supported AMD PC with a virtual floppy inside its ROM image to a Linux terminal, connect to the Internet using Ethernet/WiFi, download files to your FAT-formatted USB flash drive, edit files and create simple scripts. There is almost none free space left for any floppy-side additions.
+
+This script is meant to be run on **Artix** Linux _(Arch without SystemD)_. It is 64-bit operating system based on Arch Linux with a true init freedom. Instructions should work on all POSIX systems. Only difference is getting needed packages. **To avoid the possible issues with `~`, I use the absolute pathes for `artix` user. If you want this script to be runnable AS-IS on a system with a different username, temporarily make a symbolic link:**
+
+```bash
+cd /home/
+sudo ln -s ./my_username/ ./artix
+cd ./artix/
+```
 
 ## Core Features
 
@@ -90,27 +99,6 @@ The final distribution is very simple and consists only of minimum of tools and 
 
 **6.18.10** (released February 2026) is the latest version at the time of writing with full compatibility.
 
-## 64-bit Base OS
-
-This time I will do everything on **Artix** Linux _(Arch without SystemD)_. It is 64-bit operating system based on Arch Linux with a true init freedom. Instructions should work on all POSIX systems. Only difference is getting needed packages.
-
-## Working Directory
-
-**To avoid the possible issues with `~`, I will be using the absolute pathes for `artix` user. If you want these instructions to be copy-paste'able AS-IS, temporarily make a symbolic link:**
-
-```bash
-cd /home/
-sudo ln -s ./my_username/ ./artix
-cd ./artix/
-```
-
-Create directory where you will keep all the files.
-
-```bash
-mkdir /home/artix/my-floppy-distro/
-cd /home/artix/my-floppy-distro/
-```
-
 ## Host OS Requirements
 
 > You need supporting software to build things. This exact list may vary depending on the system you have.
@@ -118,7 +106,7 @@ cd /home/artix/my-floppy-distro/
 Install needed software/libs. On Artix:
 
 ```bash
-sudo pacman -S bc binutils bison cmake cmocka coreutils cpio curl dosfstools flex gcc m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
+sudo pacman -S bc binutils bison cmake cmocka coreutils cpio curl dosfstools flex gcc git m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
 ```
 
 Also, after fully upgrading the system with `pacman -Suy`, I downgrade some packages including GCC to avoid the possible problems I have encountered at other places:
@@ -174,7 +162,7 @@ sudo pacman -Sy
 sudo pacman -S elfkickers strip-nondeterminism
 ```
 
-Cross-compiler:
+For Linux kernel we use a host OS compiler, for everything else we are using an outdated musl toolchain as of now:
 
 ```bash
 wget https://musl.cc/x86_64-linux-musl-cross.tgz
@@ -205,23 +193,7 @@ sudo pacman -S virtualbox
 
 ## Kernel
 
-Get the sources for the latest compatible **kernel 6.18.9**:
-
-```bash
-git clone --depth=1 --branch v6.18.9 https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
-```
-
-After switching to a `./linux/` directory, replace the non-0 optimization flags with -Oz for an aggressive size optimization:
-
-```bash
-cd ./linux/
-mv ./.git/ ./../temp.git/ # Temporarily move ./.git/ to avoid damaging its contents in the process
-find . -type f -print0 | xargs -0 sed -i -e "s/-O1/-Oz/g"
-find . -type f -print0 | xargs -0 sed -i -e "s/-O2/-Oz/g"
-find . -type f -print0 | xargs -0 sed -i -e "s/-O3/-Oz/g"
-find . -type f -print0 | xargs -0 sed -i -e "s/-Os/-Oz/g"
-mv ./../temp.git/ ./.git/
-```
+We get the sources for the latest compatible **kernel 6.18.10**, replace the non-0 optimization flags with -Oz for an aggressive size optimization, then build this kernel in three variants using a linux-XXX.cfg that we wget from this repository.
 
 In order for your further changes to be easily noticeable, lets make a local commit of these "-Oz" changes. Check your `.gitconfig` contents:
 ```bash

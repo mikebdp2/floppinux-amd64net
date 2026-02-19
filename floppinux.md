@@ -1,7 +1,7 @@
 # FLOPPINUX - An Embedded 🐧Linux on a Single 💾Floppy
 ## 2026 Edition (v0.3.1-amd64net)
 
-- v0.3.1-amd64net - **February 18, 2026**
+- v0.3.1-amd64net - **February 19, 2026**
 - v0.3.1 - **December 21, 2025**
 - v0.3.0 - **October 19, 2025**
 
@@ -88,7 +88,7 @@ The final distribution is very simple and consists only of minimum of tools and 
 
 ## Linux Kernel
 
-**6.18.9** (released February 2026) is the latest version at the time of writing with full compatibility.
+**6.18.10** (released February 2026) is the latest version at the time of writing with full compatibility.
 
 ## 64-bit Base OS
 
@@ -118,7 +118,7 @@ cd /home/artix/my-floppy-distro/
 Install needed software/libs. On Artix:
 
 ```bash
-sudo pacman -S bc bison cmake cmocka coreutils cpio curl flex gcc m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
+sudo pacman -S bc binutils bison cmake cmocka coreutils cpio curl dosfstools flex gcc m4 make mtools ncurses nss openssl p7zip patch pkgconf syslinux unzip wget xxd zlib git
 ```
 
 Also, after fully upgrading the system with `pacman -Suy`, I downgrade some packages including GCC to avoid the possible problems I have encountered at other places:

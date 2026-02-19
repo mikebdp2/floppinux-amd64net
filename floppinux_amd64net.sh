@@ -440,7 +440,7 @@ kirc_build () {
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     printgr "KIRC" "build the source code"
         toucher "$TOUCH_TIME"
-    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" -j$(nproc)
         toucher "$TOUCH_TIME"
     unset CC
     printgr "KIRC" "sstrip a binary"

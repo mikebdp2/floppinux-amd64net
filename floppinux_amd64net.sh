@@ -24,11 +24,14 @@
 byellow="\e[1;33m"
    bend="\e[0m"
 # Reproducible builds
+TOUCHER_ENABLED="0"
 # Epoch value needs to have a lot of zeroes in a hexadecimal format, i.e. 1770094592
 EPOCH_TIME="0"
 TOUCH_TIME=$(date -u -d @$EPOCH_TIME +%Y%m%d%H%M.%S)
 export SOURCE_DATE_EPOCH="$EPOCH_TIME"
+# Timezone
 export TZ="UTC"
+# Locale
 export LC_ALL="C"
 export LANG="C"
 
@@ -180,13 +183,30 @@ git_clone_check () {
     fi
 }
 
-# Changes the files/dirs modification time to '$1', also in a "sudo" mode if '$2' argument is set to "sudo".
-toucher () {
-    if [ "$2" = "sudo" ]; then
-        TZ="UTC" LC_ALL="C" LANG="C" find . -print0 | sudo env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
-    else
-        TZ="UTC" LC_ALL="C" LANG="C" find . -print0 | env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
+# Changes the dir '$2' modification time to '$1', also in a "sudo" mode if '$3' argument is set to "sudo".
+toucher_dir () {
+    if [ "$TOUCHER_ENABLED" = "0" ]; then
+        return 0
     fi
+    if [ "$3" = "sudo" ]; then
+        TZ="UTC" LC_ALL="C" LANG="C" find "$2" -print0 | sudo env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
+    else
+        TZ="UTC" LC_ALL="C" LANG="C" find "$2" -print0 |      env TZ="UTC" LC_ALL="C" LANG="C" xargs -0 touch -h -t "$1" 2>/dev/null || true
+    fi
+    return 0
+}
+
+# Changes the file '$2' modification time to '$1', also in a "sudo" mode if '$3' argument is set to "sudo".
+toucher_file () {
+    if [ "$TOUCHER_ENABLED" = "0" ]; then
+        return 0
+    fi
+    if [ "$3" = "sudo" ]; then
+        sudo env TZ="UTC" LC_ALL="C" LANG="C" touch -h -t "$1" "$2" 2>/dev/null
+    else
+                 TZ="UTC" LC_ALL="C" LANG="C" touch -h -t "$1" "$2" 2>/dev/null
+    fi
+    return 0
 }
 
 # MUSL toolchain
@@ -216,16 +236,16 @@ linux_build_ver () {
                 wgetter "./linux-$1.cfg" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/linux-$1.cfg"
                 mover "./linux-$1.cfg" "./.config"
                 printgr "LINUX-$1" "build the source code"
-                    toucher "$TOUCH_TIME"
+                    toucher_dir "$TOUCH_TIME" "./"
                 make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" bzImage -j$(nproc)
-                    toucher "$TOUCH_TIME"
+                    toucher_dir "$TOUCH_TIME" "./"
                 printgr "LINUX-$1" "print a size of a kernel"
                 ls -al ./arch/x86_64/boot/bzImage
                 cd ./../
                 printgr "LINUX-$1" "create a symbolic link"
                 rm -f "./bzImage-$1"
                 ln -s "./linux-$1/arch/x86_64/boot/bzImage" "./bzImage-$1"
-                    touch -h -t "$TOUCH_TIME" "./bzImage-$1"
+                    toucher_file "$TOUCH_TIME" "./bzImage-$1"
                 ;;
             *)
                 printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} kernel version !\n\n"
@@ -288,15 +308,15 @@ dropbear_build () {
     LDFLAGS='-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/x86_64-linux-musl/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie -L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib --sysroot=/home/artix/my-floppy-distro/x86_64-linux-musl-cross'
     printgr "DROPBEAR" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" PROGRAMS="dbclient" dbclient scp -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     unset CC
     printgr "DROPBEAR" "sstrip the binaries"
     sstrip ./dbclient
-        touch -h -t "$TOUCH_TIME" "./dbclient"
+        toucher_file "$TOUCH_TIME" "./dbclient"
     sstrip ./scp
-        touch -h -t "$TOUCH_TIME" "./scp"
+        toucher_file "$TOUCH_TIME" "./scp"
     printgr "DROPBEAR" "print the sizes of binaries"
     ls -al ./dbclient
     ls -al ./scp
@@ -323,9 +343,9 @@ libnl_build () {
     printgr "LIBNL-TINY" "configure the source code for toolchain directory installation"
     cmake -DCMAKE_INSTALL_PREFIX=/home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/ ..
     printgr "LIBNL-TINY" "build the source code"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "LIBNL-TINY" "install the library to a toolchain directory"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
     cd ./../
@@ -335,9 +355,9 @@ libnl_build () {
     printgr "LIBNL-TINY" "configure the source code for host OS directory installation"
     cmake -DCMAKE_INSTALL_PREFIX=/usr/ ..
     printgr "LIBNL-TINY" "build the source code"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "LIBNL-TINY" "install the library to a host OS directory"
     sudoer "install the LIBNL-TINY library to a host OS directory"
     sudo make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
@@ -383,13 +403,13 @@ wpa_build () {
     cd ./wpa_supplicant/
     printgr "WPA_SUPPLICANT" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" wpa_supplicant -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     unset CC
     printgr "WPA_SUPPLICANT" "sstrip the binary"
     sstrip ./wpa_supplicant
-        touch -h -t "$TOUCH_TIME" "./wpa_supplicant"
+        toucher_file "$TOUCH_TIME" "./wpa_supplicant"
     printgr "WPA_SUPPLICANT" "print a size of a binary"
     ls -al ./wpa_supplicant
     cd ./../../wpa_cli/
@@ -399,13 +419,13 @@ wpa_build () {
     cd ./wpa_supplicant/
     printgr "WPA_CLI" "build the source code"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" wpa_cli -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     unset CC
     printgr "WPA_CLI" "sstrip the binary"
     sstrip ./wpa_cli
-        touch -h -t "$TOUCH_TIME" "./wpa_cli"
+        toucher_file "$TOUCH_TIME" "./wpa_cli"
     printgr "WPA_CLI" "print a size of a binary"
     ls -al ./wpa_cli
     cd ./../../
@@ -439,18 +459,18 @@ kirc_build () {
     patch -p1 < "./kirc.patch"
     export CC="/home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc"
     printgr "KIRC" "build the source code"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" CC="$CC" -j$(nproc)
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     unset CC
     printgr "KIRC" "sstrip a binary"
     sstrip ./kirc
-        touch -h -t "$TOUCH_TIME" "./kirc"
+        toucher_file "$TOUCH_TIME" "./kirc"
     printgr "KIRC" "print a size of a binary"
     ls -al ./kirc
     printgr "KIRC" "generate a user manual"
     man ./kirc.1 > ./kirc.txt
-        touch -h -t "$TOUCH_TIME" "./kirc.txt"
+        toucher_file "$TOUCH_TIME" "./kirc.txt"
     cd ./../
     return 0
 }
@@ -483,28 +503,26 @@ busybox_build () {
     sed -i "s|.*CONFIG_EXTRA_CFLAGS.*|CONFIG_EXTRA_CFLAGS=\"-I/home/artix/my-floppy-distro/x86_64-linux-musl-cross/include -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie\"|" ./.config
     sed -i "s|.*CONFIG_EXTRA_LDFLAGS.*|CONFIG_EXTRA_LDFLAGS=\"-L/home/artix/my-floppy-distro/x86_64-linux-musl-cross/lib -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--fatal-warnings -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie\"|" ./.config
     printgr "BUSYBOX" "build the source code"
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" -j$(nproc)
-        toucher "$TOUCH_TIME"
     printgr "BUSYBOX" "sstrip a binary"
     sstrip ./busybox
-        touch -h -t "$TOUCH_TIME" "./busybox"
+        toucher_file "$TOUCH_TIME" "./busybox"
     ls -al ./busybox
     printgr "BUSYBOX" "generate the initial filesystem"
     rm -rf ./_install/
-        toucher "$TOUCH_TIME"
-    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install
-        toucher "$TOUCH_TIME"
+    make SOURCE_DATE_EPOCH="$EPOCH_TIME" TZ="UTC" LC_ALL="C" LANG="C" ARCH="x86_64" install -j$(nproc)
+        toucher_dir "$TOUCH_TIME" "./"
     rm -rf ./../filesystem/
     cp -r ./_install/ ./../filesystem/
     cd ./../filesystem/
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX" "create the filesystem directories"
     mkdir -p {./dev/,./proc/,./etc/init.d/,./sys/,./tmp/,./home/,./var/run/,./lib/firmware/ath9k_htc/}
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX" "wget a welcome message"
-    ### wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
-        touch -h -t "$TOUCH_TIME" "./welcome"
+    # wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
+        toucher_file "$TOUCH_TIME" "./welcome"
     printgr "BUSYBOX" "create an inittab file"
     rm -f  ./etc/inittab
     cat >> ./etc/inittab << EOF
@@ -515,7 +533,7 @@ busybox_build () {
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/bin/umount -a -r
 EOF
-        touch -h -t "$TOUCH_TIME" "./etc/inittab"
+        toucher_file "$TOUCH_TIME" "./etc/inittab"
     printgr "BUSYBOX" "create the init rc script"
     rm -f  ./etc/init.d/rc
     cat >> ./etc/init.d/rc << EOF
@@ -639,14 +657,14 @@ echo -e "udhcpc& autosetup their ifaces when: Eth plugged / WiFi connects (+ USB
 /usr/bin/setsid /bin/cttyhack /bin/sh
 EOF
     chmod +x ./etc/init.d/rc
-        touch -h -t "$TOUCH_TIME" "./etc/init.d/rc"
+        toucher_file "$TOUCH_TIME" "./etc/init.d/rc"
     printgr "BUSYBOX" "create the wpa_supplicant config"
     rm -f  ./etc/wpa_supplicant.conf
     cat >> ./etc/wpa_supplicant.conf << EOF
 ctrl_interface=/var/run/wpa_supplicant
 update_config=1
 EOF
-        touch -h -t "$TOUCH_TIME" "./etc/wpa_supplicant.conf"
+        toucher_file "$TOUCH_TIME" "./etc/wpa_supplicant.conf"
     printgr "BUSYBOX" "create the get_repo.sh script"
     rm -f  ./etc/get_repo.sh
     cat >> ./etc/get_repo.sh << EOF
@@ -655,7 +673,7 @@ chmod +x ./repo.sh
 ./repo.sh
 EOF
     chmod +x ./etc/get_repo.sh
-        touch -h -t "$TOUCH_TIME" "./etc/get_repo.sh"
+        toucher_file "$TOUCH_TIME" "./etc/get_repo.sh"
     printgr "BUSYBOX" "create the udhcpc script"
     rm -f  ./etc/udhcpc.sh
     cat >> ./etc/udhcpc.sh << EOF
@@ -694,26 +712,25 @@ esac
 exit 0
 EOF
     chmod +x ./etc/udhcpc.sh
-        touch -h -t "$TOUCH_TIME" "./etc/udhcpc.sh"
+        toucher_file "$TOUCH_TIME" "./etc/udhcpc.sh"
     printgr "BUSYBOX" "copy the external files"
     cp ./../dropbear/dbclient ./usr/bin/dbclient
-        touch -h -t "$TOUCH_TIME" "./usr/bin/dbclient"
+        toucher_file "$TOUCH_TIME" "./usr/bin/dbclient"
     cp ./../dropbear/scp ./usr/bin/scp
-        touch -h -t "$TOUCH_TIME" "./usr/bin/scp"
+        toucher_file "$TOUCH_TIME" "./usr/bin/scp"
     cp ./../wpa_supplicant/wpa_supplicant/wpa_supplicant ./usr/bin/wpa_supplicant
-        touch -h -t "$TOUCH_TIME" "./usr/bin/wpa_supplicant"
+        toucher_file "$TOUCH_TIME" "./usr/bin/wpa_supplicant"
     cp ./../wpa_cli/wpa_supplicant/wpa_cli ./usr/bin/wpa_cli
-        touch -h -t "$TOUCH_TIME" "./usr/bin/wpa_cli"
+        toucher_file "$TOUCH_TIME" "./usr/bin/wpa_cli"
     cp ./../linux-firmware/ath9k_htc/htc_9271-1.4.0.fw ./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw
-        touch -h -t "$TOUCH_TIME" "./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw"
+        toucher_file "$TOUCH_TIME" "./lib/firmware/ath9k_htc/htc_9271-1.4.0.fw"
     ### cp ./../kirc/kirc /usr/bin/kirc
     ### cp ./../kirc/kirc.txt /etc/kirc.txt
     cd ./usr/bin/
     ln -s ./dbclient ./ssh
-        touch -h -t "$TOUCH_TIME" "./ssh"
-    cd ./../../
-        toucher "$TOUCH_TIME"
-    cd ./../
+        toucher_file "$TOUCH_TIME" "./ssh"
+    cd ./../../../
+        toucher_dir "$TOUCH_TIME" "./filesystem/"
     printgr "BUSYBOX-NORTL" "create a directory"
     if [ -d "./filesystem-nortl/" ] ; then
         sudoer "remove the old /home/artix/my-floppy-distro/filesystem-nortl/ directory"
@@ -721,38 +738,37 @@ EOF
     fi
     cp -r ./filesystem/ ./filesystem-nortl/
     cd ./filesystem-nortl/
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX-NORTL" "create the device nodes"
     sudoer "create the device nodes for BUSYBOX-NORTL"
     sudo mknod ./dev/console c 5 1
     sudo mknod ./dev/null c 1 3
-        toucher "$TOUCH_TIME" "sudo"
+        toucher_dir "$TOUCH_TIME" "./" "sudo"
     printgr "BUSYBOX-NORTL" "give the ownership to root"
     sudoer "give the ownership to root for BUSYBOX-NORTL"
     sudo chown -R root:root ./
     printgr "BUSYBOX-NORTL" "change the files/dirs modification time"
     sudoer "change the files/dirs modification time"
-        toucher "$TOUCH_TIME" "sudo"
+        toucher_dir "$TOUCH_TIME" "./" "sudo"
     printgr "BUSYBOX-NORTL" "create a rootfs archive"
     rm -f ./../rootfs-nortl.cpio
     rm -f ./../rootfs-nortl.cpio.lzma
     LC_ALL="C" LANG="C" find . -print0 | LC_ALL="C" LANG="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-nortl.cpio
-        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio"
+        toucher_file "$TOUCH_TIME" "./../rootfs-nortl.cpio"
     strip-nondeterminism -t cpio -T $EPOCH_TIME ./../rootfs-nortl.cpio
-        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio"
+        toucher_file "$TOUCH_TIME" "./../rootfs-nortl.cpio"
     xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-nortl.cpio > ./../rootfs-nortl.cpio.lzma
-        touch -h -t "$TOUCH_TIME" "./../rootfs-nortl.cpio.lzma"
-    rm -f ./../rootfs-nortl.cpio
+        toucher_file "$TOUCH_TIME" "./../rootfs-nortl.cpio.lzma"
     cd ./../
     printgr "BUSYBOX-NORTL" "print a size of a rootfs archive"
     ls -al ./rootfs-nortl.cpio.lzma
     printgr "BUSYBOX-NORTL" "create the symbolic links"
     rm -f "./rootfs-ath.cpio.lzma"
     ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-ath.cpio.lzma"
-        touch -h -t "$TOUCH_TIME" "./rootfs-ath.cpio.lzma"
+        toucher_file "$TOUCH_TIME" "./rootfs-ath.cpio.lzma"
     rm -f "./rootfs-pcn.cpio.lzma"
     ln -s "./rootfs-nortl.cpio.lzma" "./rootfs-pcn.cpio.lzma"
-        touch -h -t "$TOUCH_TIME" "./rootfs-pcn.cpio.lzma"
+        toucher_file "$TOUCH_TIME" "./rootfs-pcn.cpio.lzma"
     printgr "BUSYBOX-WIRTL" "create a directory"
     if [ -d "./filesystem-wirtl/" ] ; then
         sudoer "remove the old /home/artix/my-floppy-distro/filesystem-wirtl/ directory"
@@ -760,44 +776,41 @@ EOF
     fi
     cp -r ./filesystem/ ./filesystem-wirtl/
     cd ./filesystem-wirtl/
-        toucher "$TOUCH_TIME"
+        toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX-WIRTL" "create the device nodes"
     sudoer "create the device nodes for BUSYBOX-WIRTL"
     sudo mknod ./dev/console c 5 1
     sudo mknod ./dev/null c 1 3
-        toucher "$TOUCH_TIME" "sudo"
+        toucher_dir "$TOUCH_TIME" "./" "sudo"
     printgr "BUSYBOX-WIRTL" "copy the Realtek firmware files"
     mkdir -p ./lib/firmware/rtl_nic/
     LC_ALL="C" LANG="C" find ./../linux-firmware/rtl_nic/ -name "rtl816*" | \
         LC_ALL="C" LANG="C" sort | while IFS= read -r file; do \
             cp "$file" ./lib/firmware/rtl_nic/; \
-            cd ./lib/firmware/rtl_nic/; \
-                toucher "$TOUCH_TIME"; \
-            cd ./../../../; \
+            toucher_dir "$TOUCH_TIME" "./lib/firmware/rtl_nic/"; \
         done
     printgr "BUSYBOX-WIRTL" "give the ownership to root"
     sudoer "give the ownership to root for BUSYBOX-WIRTL"
     sudo chown -R root:root ./
     printgr "BUSYBOX-WIRTL" "change the files/dirs modification time"
     sudoer "change the files/dirs modification time"
-        toucher "$TOUCH_TIME" "sudo"
+        toucher_dir "$TOUCH_TIME" "./" "sudo"
     printgr "BUSYBOX-WIRTL" "create a rootfs archive"
     rm -f ./../rootfs-wirtl.cpio
     rm -f ./../rootfs-wirtl.cpio.lzma
     LC_ALL="C" LANG="C" find . -print0 | LC_ALL="C" LANG="C" sort -z | cpio -0 -H newc -o --reproducible 2>/dev/null > ./../rootfs-wirtl.cpio
-        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
+        toucher_file "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
     strip-nondeterminism -t cpio -T $EPOCH_TIME ./../rootfs-wirtl.cpio
-        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
+        toucher_file "$TOUCH_TIME" "./../rootfs-wirtl.cpio"
     xz --threads=1 --format=lzma --check=crc32 --lzma1=dict=64MiB,lc=3,lp=0,pb=2,mode=normal,nice=273,mf=bt4,depth=0 < ./../rootfs-wirtl.cpio > ./../rootfs-wirtl.cpio.lzma
-        touch -h -t "$TOUCH_TIME" "./../rootfs-wirtl.cpio.lzma"
-    rm -f ./../rootfs-wirtl.cpio
+        toucher_file "$TOUCH_TIME" "./../rootfs-wirtl.cpio.lzma"
     cd ./../
     printgr "BUSYBOX-WIRTL" "print a size of a rootfs archive"
     ls -al ./rootfs-wirtl.cpio.lzma
     printgr "BUSYBOX-WIRTL" "create a symbolic link"
     rm -f "./rootfs-rtl.cpio.lzma"
     ln -s "./rootfs-wirtl.cpio.lzma" "./rootfs-rtl.cpio.lzma"
-        touch -h -t "$TOUCH_TIME" "./rootfs-rtl.cpio.lzma"
+        toucher_file "$TOUCH_TIME" "./rootfs-rtl.cpio.lzma"
     return 0
 }
 
@@ -814,7 +827,7 @@ INITRD rfscpiol.zma
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 tsc=unstable
 EOF
     chmod +x ./syslinux.cfg
-        touch -h -t "$TOUCH_TIME" "./syslinux.cfg"
+        toucher_file "$TOUCH_TIME" "./syslinux.cfg"
     printgr "SYSLINUX" "generate a debug config file"
     rm -f  ./syslinux_debug.cfg
     cat >> ./syslinux_debug.cfg << EOF
@@ -826,7 +839,7 @@ INITRD rfscpiol.zma
 APPEND root=/dev/ram rdinit=/etc/init.d/rc console=tty0 ignore_loglevel earlyprintk=tty0 loglevel=8 tsc=unstable
 EOF
     chmod +x ./syslinux_debug.cfg
-        touch -h -t "$TOUCH_TIME" "./syslinux_debug.cfg"
+        toucher_file "$TOUCH_TIME" "./syslinux_debug.cfg"
     return 0
 }
 
@@ -875,7 +888,7 @@ floppinux_build () {
                 printgr "FLOPPINUX-$1" "change the files/dirs modification time"
                 cd /temp_mnt
                 sudoer "change the files/dirs modification time"
-                    toucher "$TOUCH_TIME" "sudo"
+                    toucher_dir "$TOUCH_TIME" "./" "sudo"
                 cd /home/artix/my-floppy-distro/
                 printgr "FLOPPINUX-$1" "unmount a floppy"
                 sudoer "unmount a ./flpnx$1.img floppy"

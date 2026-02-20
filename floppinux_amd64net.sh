@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 16 Feb 2026.
+#    floppinux_amd64net.sh: FLOPPINUX-AMD64NET build script, 20 Feb 2026.
 #
 #   Produces a FLOPPINUX-AMD64NET floppy to use as a virtual floppy at the
 #    coreboot-supported AMD-no-PSP-backdoor boards that I am maintaining :
@@ -23,7 +23,7 @@
  bgreen="\e[1;32m"
 byellow="\e[1;33m"
    bend="\e[0m"
-# Reproducible builds
+# Aiming for the reproducible builds
 TOUCHER_ENABLED="1"
 # Epoch value needs to have a lot of zeroes in a hexadecimal format, i.e. 1770094592
 EPOCH_TIME="0"
@@ -577,6 +577,29 @@ clear_iface() {
  ifconfig "\$iface" 0.0.0.0 2>/dev/null
 }
 
+# udhcpc runs for iface? if "kill" also kills
+udhcpc_check() {
+ local iface=\$1 action=\$2
+ for p in /proc/[0-9]*; do
+  if [ -r "\$p/cmdline" ]; then
+   cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
+   case "\$cmdline" in
+    *udhcpc*)
+     case "\$cmdline" in *"\$iface"*)
+      if [ "\$action" = "kill" ]; then
+       kill -9 "\${p##*/}" 2>/dev/null
+      else
+       echo "yes"
+       return
+      fi
+     ;; esac
+    ;;
+   esac
+  fi
+ done
+ [ "\$action" != "kill" ] && echo "no"
+}
+
 monitor_link() {
  local iface=\$1 last_status=""
  local carrier_file="/sys/class/net/\$iface/carrier"
@@ -584,58 +607,65 @@ monitor_link() {
  while true; do
   [ ! -d "/sys/class/net/\$iface" ] && break
   [ -f "\$carrier_file" ] || { sleep 1; continue; }
-  current_status=\$(cat "\$carrier_file" 2>/dev/null) || { sleep 1; continue; }
-  [ -n "\$current_status" ] || { sleep 1; continue; }
-  [ "\$current_status" = "\$last_status" ] && { sleep 1; continue; }
-  case "\$current_status" in
+  cur_status=\$(cat "\$carrier_file" 2>/dev/null) || { sleep 1; continue; }
+  [ -n "\$cur_status" ] || { sleep 1; continue; }
+  [ "\$cur_status" = "\$last_status" ] && { sleep 1; continue; }
+  case "\$cur_status" in
    1*)
-    echo "  Link detected on \$iface"
-    # Check if any udhcpc already running for this interface
-    udhcpc_running=""
-    for p in /proc/[0-9]*; do
-     if [ -r "\$p/cmdline" ]; then
-      cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
-      case "\$cmdline" in *udhcpc*"-i \$iface"*) udhcpc_running="yes"; break;; esac
-     fi
-    done
-    # Start udhcpc if not running
-    [ -z "\$udhcpc_running" ] && udhcpc -i "\$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+    echo "  Link UP: \$iface"
+    # Run udhcpc if not running
+    [ "\$(udhcpc_check \$iface)" = "no" ] && udhcpc -i "\$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
    ;;
    0*)
-    echo "  Link lost on \$iface"
-    # Kill ALL udhcpc processes for this interface by matching cmdline
-    for p in /proc/[0-9]*; do
-     if [ -r "\$p/cmdline" ]; then
-      cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
-      case "\$cmdline" in *udhcpc*"-i \$iface"*)
-       kill -9 "\${p##*/}" 2>/dev/null
-      ;; esac
-     fi
-    done
+    echo "  Link DOWN: \$iface"
+    # Kill all udhcpc for this iface
+    udhcpc_check \$iface kill
     clear_iface "\$iface"
    ;;
   esac
-  last_status="\$current_status"
+  last_status="\$cur_status"
   sleep 1
  done
 }
 
-monitor_wireless_hotplug() {
- local wireless_handled_dir="/var/run/wireless-handled"
- mkdir -p "\$wireless_handled_dir" 2>/dev/null
- echo "Start WiFi hotplug monitor..."
+monitor_wifi_hotplug() {
+ local wifi_handled_dir="/var/run/wifi-handled"
+ mkdir -p "\$wifi_handled_dir" 2>/dev/null
+ echo "Start WiFi hotplug monitor"
  while true; do
+  # Del gone ifaces
+  for handled in "\$wifi_handled_dir"/*; do
+   [ -e "\$handled" ] || continue
+   netdev=\${handled##*/}
+   [ -d "/sys/class/net/\$netdev" ] && continue
+   echo "  WiFi dev gone: \$netdev"
+   for p in /proc/[0-9]*; do
+    [ -r "\$p/cmdline" ] || continue
+    cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
+    case "\$cmdline" in
+     *wpa_supplicant*)
+      case "\$cmdline" in *"\$netdev"*)
+       kill -9 "\${p##*/}" 2>/dev/null
+       rm -f "/var/run/wpa_supplicant/\$netdev" 2>/dev/null
+      ;; esac
+     ;;
+    esac
+   done
+   udhcpc_check \$netdev kill
+   rm -f "\$handled"
+  done
+
+  # Find new ifaces
   for netdev in /sys/class/net/wlan*; do
    [ -e "\$netdev" ] || continue
    netdev=\${netdev##*/}
-   # Handled Y/N?
-   [ -f "\$wireless_handled_dir/\$netdev" ] && continue
-   echo "  New WiFi dev detected: \$netdev"
-   echo "handled" > "\$wireless_handled_dir/\$netdev"
+   [ -f "\$wifi_handled_dir/\$netdev" ] && continue
+   echo "  New WiFi dev: \$netdev"
+   > "\$wifi_handled_dir/\$netdev"
    ifconfig \$netdev up 2>/dev/null
    [ -f /etc/wpa_supplicant.conf ] && wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
    if [ -f "/sys/class/net/\$netdev/carrier" ] && [ "\$(cat "/sys/class/net/\$netdev/carrier" 2>/dev/null)" = "1" ]; then
-    udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+    [ "\$(udhcpc_check \$netdev)" = "no" ] && udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
    fi
    monitor_link \$netdev &
   done
@@ -643,20 +673,19 @@ monitor_wireless_hotplug() {
  done
 }
 
-echo "Start udhcpc& on all netdevs..."
+echo "Monitor all netdevs"
 for netdev in /sys/class/net/*; do
  netdev=\${netdev##*/}
  [ "\$netdev" = "lo" ] && continue
- echo "  Start udhcpc on: \$netdev"
+ echo "  Mon: \$netdev"
  ifconfig \$netdev up 2>/dev/null
- udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
  monitor_link \$netdev &
  case \$netdev in wlan*)
-  echo "  Start wpa_supplicant on: \$netdev"
+  echo "  Start wpa_supplicant: \$netdev"
   wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
  ;; esac
 done
-monitor_wireless_hotplug &
+monitor_wifi_hotplug &
 echo -e "udhcpc& autosetup their ifaces when: Eth plugged / WiFi connects (+ USB hotplug)\n\nManual WiFi (kill old proc 1st):\n  wpa_supplicant -B -i wlanXXX -c /etc/wpa_supplicant.conf ; wpa_cli -i wlanXXX :\n  scan, scan_results, add_network, scan, scan_results, add_network (prints N num),\n  set_network N ssid \"NAME\", set_network N psk \"PASS\", enable_network N,\n  save_config, quit ; udhcpc -i wlanXXX -s /etc/udhcpc.sh -b &"
 /usr/bin/setsid /bin/cttyhack /bin/sh
 EOF

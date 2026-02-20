@@ -523,8 +523,8 @@ busybox_build () {
     mkdir -p {./dev/,./proc/,./etc/init.d/,./sys/,./tmp/,./home/,./var/run/,./lib/firmware/ath9k_htc/}
         toucher_dir "$TOUCH_TIME" "./"
     printgr "BUSYBOX" "wget a welcome message"
-    wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
-        toucher_file "$TOUCH_TIME" "./welcome"
+    ### wgetter "./welcome" "https://raw.githubusercontent.com/mikebdp2/floppinux-amd64net/refs/heads/main/welcome"
+    ###     toucher_file "$TOUCH_TIME" "./welcome"
     printgr "BUSYBOX" "create an inittab file"
     rm -f  ./etc/inittab
     cat >> ./etc/inittab << EOF
@@ -578,18 +578,11 @@ clear_iface() {
 }
 
 monitor_link() {
- local iface=\$1
- local last_status=""
- local pid_file="/var/run/udhcpc-\$iface.pid"
+ local iface=\$1 last_status=""
  local carrier_file="/sys/class/net/\$iface/carrier"
  [ -z "\$iface" ] && return 1
  while true; do
-  # iface still exists?
-  [ ! -d "/sys/class/net/\$iface" ] && {
-   # rm pid if gone
-   [ -f "\$pid_file" ] && rm -f "\$pid_file"
-   break
-  }
+  [ ! -d "/sys/class/net/\$iface" ] && break
   [ -f "\$carrier_file" ] || { sleep 1; continue; }
   current_status=\$(cat "\$carrier_file" 2>/dev/null) || { sleep 1; continue; }
   [ -n "\$current_status" ] || { sleep 1; continue; }
@@ -597,19 +590,28 @@ monitor_link() {
   case "\$current_status" in
    1*)
     echo "  Link detected on \$iface"
+    # Check if any udhcpc already running for this interface
+    udhcpc_running=""
+    for p in /proc/[0-9]*; do
+     if [ -r "\$p/cmdline" ]; then
+      cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
+      case "\$cmdline" in *udhcpc*"-i \$iface"*) udhcpc_running="yes"; break;; esac
+     fi
+    done
     # Start udhcpc if not running
-    if [ ! -f "\$pid_file" ] || ! kill -0 \$(cat "\$pid_file" 2>/dev/null) 2>/dev/null; then
-     udhcpc -i "\$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
-     echo \$! > "\$pid_file"
-    fi
+    [ -z "\$udhcpc_running" ] && udhcpc -i "\$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
    ;;
    0*)
     echo "  Link lost on \$iface"
-    # Kill udhcpc if running
-    [ -f "\$pid_file" ] && {
-     kill \$(cat "\$pid_file" 2>/dev/null) 2>/dev/null
-     rm -f "\$pid_file"
-    }
+    # Kill ALL udhcpc processes for this interface by matching cmdline
+    for p in /proc/[0-9]*; do
+     if [ -r "\$p/cmdline" ]; then
+      cmdline=\$(cat "\$p/cmdline" 2>/dev/null)
+      case "\$cmdline" in *udhcpc*"-i \$iface"*)
+       kill -9 "\${p##*/}" 2>/dev/null
+      ;; esac
+     fi
+    done
     clear_iface "\$iface"
    ;;
   esac
@@ -623,33 +625,33 @@ monitor_wireless_hotplug() {
  mkdir -p "\$wireless_handled_dir" 2>/dev/null
  echo "Start WiFi hotplug monitor..."
  while true; do
-  for netdev in \$(ls --color=never /sys/class/net/ 2>/dev/null); do
-   case "\$netdev" in wlan*)
-    # Handled Y/N?
-    [ -f "\$wireless_handled_dir/\$netdev" ] && continue
-    echo "  New WiFi dev detected: \$netdev"
-    echo "handled" > "\$wireless_handled_dir/\$netdev"
-    ifconfig \$netdev up 2>/dev/null
-    [ -f /etc/wpa_supplicant.conf ] && wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
-    if [ -f "/sys/class/net/\$netdev/carrier" ] && [ "\$(cat "/sys/class/net/\$netdev/carrier" 2>/dev/null)" = "1" ]; then
-     udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
-     echo \$! > "/var/run/udhcpc-\$netdev.pid"
-    fi
-    monitor_link \$netdev &
-   ;; esac
+  for netdev in /sys/class/net/wlan*; do
+   [ -e "\$netdev" ] || continue
+   netdev=\${netdev##*/}
+   # Handled Y/N?
+   [ -f "\$wireless_handled_dir/\$netdev" ] && continue
+   echo "  New WiFi dev detected: \$netdev"
+   echo "handled" > "\$wireless_handled_dir/\$netdev"
+   ifconfig \$netdev up 2>/dev/null
+   [ -f /etc/wpa_supplicant.conf ] && wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
+   if [ -f "/sys/class/net/\$netdev/carrier" ] && [ "\$(cat "/sys/class/net/\$netdev/carrier" 2>/dev/null)" = "1" ]; then
+    udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+   fi
+   monitor_link \$netdev &
   done
   sleep 3
  done
 }
 
 echo "Start udhcpc& on all netdevs..."
-for netdev in \$(ls --color=never /sys/class/net/); do
+for netdev in /sys/class/net/*; do
+ netdev=\${netdev##*/}
  [ "\$netdev" = "lo" ] && continue
  echo "  Start udhcpc on: \$netdev"
  ifconfig \$netdev up 2>/dev/null
  udhcpc -i \$netdev -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
  monitor_link \$netdev &
- case "\$netdev" in wlan*)
+ case \$netdev in wlan*)
   echo "  Start wpa_supplicant on: \$netdev"
   wpa_supplicant -B -i \$netdev -c /etc/wpa_supplicant.conf
  ;; esac

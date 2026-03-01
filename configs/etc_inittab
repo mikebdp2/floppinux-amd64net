@@ -1,0 +1,6 @@
+::sysinit:/etc/init.d/rc
+::askfirst:/usr/bin/setsid /bin/cttyhack /bin/sh
+::respawn:/usr/bin/setsid /bin/cttyhack /bin/sh
+::restart:/sbin/init
+::ctrlaltdel:/sbin/reboot
+::shutdown:/bin/umount -a -r

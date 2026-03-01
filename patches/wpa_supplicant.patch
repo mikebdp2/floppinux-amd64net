@@ -1,0 +1,148 @@
+diff --git a/wpa_supplicant/Makefile b/wpa_supplicant/Makefile
+index 743c8ac..5f0e5d5 100644
+--- a/wpa_supplicant/Makefile
++++ b/wpa_supplicant/Makefile
+@@ -1,13 +1,70 @@
+ BINALL=wpa_supplicant wpa_cli
+ 
+ ALL = $(BINALL)
+-ALL += systemd/wpa_supplicant.service
+-ALL += systemd/wpa_supplicant@.service
+-ALL += systemd/wpa_supplicant-nl80211@.service
+-ALL += systemd/wpa_supplicant-wired@.service
+-ALL += dbus/fi.w1.wpa_supplicant1.service
+-
+-EXTRA_TARGETS=dynamic_eap_methods
++### ALL += systemd/wpa_supplicant.service
++### ALL += systemd/wpa_supplicant@.service
++### ALL += systemd/wpa_supplicant-nl80211@.service
++### ALL += systemd/wpa_supplicant-wired@.service
++### ALL += dbus/fi.w1.wpa_supplicant1.service
++
++### EXTRA_TARGETS=dynamic_eap_methods
++EXTRA_TARGETS=""
++
++# Set up toolchain paths
++TOOLCHAIN_DIR = /home/artix/my-floppy-distro/x86_64-linux-musl-cross
++SYSROOT = $(TOOLCHAIN_DIR)
++
++# Set PKG_CONFIG path to find libnl-tiny.pc
++export PKG_CONFIG_PATH = $(SYSROOT)/usr/lib/pkgconfig:$(SYSROOT)/usr/share/pkgconfig
++export PKG_CONFIG_LIBDIR = $(SYSROOT)/usr/lib/pkgconfig
++export PKG_CONFIG_SYSROOT_DIR = $(SYSROOT)
++
++# Direct include and library paths for libnl-tiny
++NL_INCLUDE = -I$(SYSROOT)/usr/include/libnl-tiny
++
++LDFLAGS = -L$(TOOLCHAIN_DIR)/lib \
++          -L$(TOOLCHAIN_DIR)/x86_64-linux-musl/lib \
++          -static \
++          -s \
++          -Wl,--gc-sections \
++          -Wl,--strip-all \
++          -Wl,--build-id=none \
++          -Wl,-z,norelro \
++          -Wl,--hash-style=sysv \
++          -Wl,--no-eh-frame-hdr \
++          -Wl,-z,noseparate-code \
++          -Wl,--no-undefined-version \
++          -Wl,--as-needed \
++          -Wl,--sort-common \
++          -Wl,--sort-section=alignment \
++          -Wl,--compress-debug-sections=none \
++          -Wl,--warn-common \
++          -Wl,--fatal-warnings \
++          -Wl,--discard-all \
++          -Wl,--discard-locals \
++          -Wl,--no-ld-generated-unwind-info \
++          -Wl,--orphan-handling=place \
++          -no-pie
++
++EXTRA_CFLAGS = -static \
++    -Os \
++    -s \
++    -ffunction-sections -fdata-sections \
++    -fno-unwind-tables -fno-asynchronous-unwind-tables \
++    -fno-stack-protector -fomit-frame-pointer \
++    -fmerge-all-constants -fno-ident \
++    -fno-math-errno \
++    -fno-unroll-loops \
++    -ffast-math \
++    -fvisibility=hidden \
++    -fno-exceptions \
++    -march=x86-64 \
++    -mtune=generic \
++    -fno-align-functions \
++    -fno-align-jumps \
++    -fno-align-loops \
++    -fno-align-labels \
++    $(NL_INCLUDE)
+ 
+ CONFIG_FILE=.config
+ include ../src/build.rules
+@@ -41,9 +98,9 @@ LIBS_p := $(LIBS)
+ endif
+ endif
+ 
+-export LIBDIR ?= /usr/local/lib
+-export INCDIR ?= /usr/local/include
+-export BINDIR ?= /usr/local/sbin
++export LIBDIR ?= /home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/lib
++export INCDIR ?= /home/artix/my-floppy-distro/x86_64-linux-musl-cross/usr/include
++export BINDIR ?= /home/artix/my-floppy-distro/x86_64-linux-musl-cross/sbin
+ PKG_CONFIG ?= pkg-config
+ 
+ CFLAGS += $(EXTRA_CFLAGS)
+@@ -1321,15 +1378,15 @@ LIBS += -ltommath
+ LIBS_p += -ltommath
+ endif
+ CONFIG_INTERNAL_AES=y
+-CONFIG_INTERNAL_DES=y
++### CONFIG_INTERNAL_DES=y
+ CONFIG_INTERNAL_SHA1=y
+-CONFIG_INTERNAL_MD4=y
++### CONFIG_INTERNAL_MD4=y
+ CONFIG_INTERNAL_MD5=y
+ CONFIG_INTERNAL_SHA256=y
+-CONFIG_INTERNAL_SHA384=y
+-CONFIG_INTERNAL_SHA512=y
++### CONFIG_INTERNAL_SHA384=y
++### CONFIG_INTERNAL_SHA512=y
+ CONFIG_INTERNAL_RC4=y
+-CONFIG_INTERNAL_DH_GROUP5=y
++### CONFIG_INTERNAL_DH_GROUP5=y
+ endif
+ ifeq ($(CONFIG_CRYPTO), cryptoapi)
+ OBJS += ../src/crypto/crypto_cryptoapi.o
+@@ -2007,6 +2064,15 @@ include ../src/objs.mk
+ wpa_supplicant: $(BCHECK) $(OBJS) $(EXTRA_progs)
+ 	$(Q)$(LDO) $(LDFLAGS) -o wpa_supplicant $(OBJS) $(LIBS) $(EXTRALIBS)
+ 	@$(E) "  LD " $@
++	./../../x86_64-linux-musl-cross/bin/x86_64-linux-musl-strip --strip-all \
++	--remove-section=.note.gnu.build-id \
++	--remove-section=.comment \
++	--remove-section=.gnu.version \
++	--remove-section=.gnu.version_r \
++	--remove-section=.eh_frame \
++	--remove-section=.eh_frame_hdr \
++	./wpa_supplicant
++	ls -al ./wpa_supplicant
+ 
+ _OBJS_VAR := OBJS_t
+ include ../src/objs.mk
+@@ -2031,6 +2097,15 @@ include ../src/objs.mk
+ wpa_cli: $(OBJS_c)
+ 	$(Q)$(LDO) $(LDFLAGS) -o wpa_cli $(OBJS_c) $(LIBS_c)
+ 	@$(E) "  LD " $@
++	./../../x86_64-linux-musl-cross/bin/x86_64-linux-musl-strip --strip-all \
++	--remove-section=.note.gnu.build-id \
++	--remove-section=.comment \
++	--remove-section=.gnu.version \
++	--remove-section=.gnu.version_r \
++	--remove-section=.eh_frame \
++	--remove-section=.eh_frame_hdr \
++	./wpa_cli
++	ls -al ./wpa_cli
+ 
+ LIBCTRL += ../src/common/wpa_ctrl.o
+ LIBCTRL += ../src/utils/os_$(CONFIG_OS).o

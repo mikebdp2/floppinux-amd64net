@@ -1,0 +1,171 @@
+#!/bin/sh
+mount -t proc none /proc
+mount -t sysfs none /sys
+mdev -s
+ln -sf /proc/mounts /etc/mtab
+mkdir -p /mnt /home
+mount -t msdos -o rw /dev/fd0 /mnt
+mkdir -p /mnt/data
+mount --bind /mnt/data /home
+clear
+[ -f /welcome ] && cat /welcome
+cd /home
+mdev -d &
+
+FLGDIR="/var/run/net"
+SCNDIR="/sys/class/net"
+WSCONF="/etc/wpa_supplicant.conf"
+# Value of $SCNDIR/$1/$2 sysfile '$2' of '$1' iface. Unique chars:
+# In ~= "read error: Invalid argument", No ~= "No such file or directory"
+get_state () {
+ local f=$(LC_ALL="C" LANG="C" cat "$SCNDIR/$1/$2" 2>&1)
+ case "$f" in
+  *In*) echo "fail" ;;
+  *No*) echo "gone" ;;
+  *)   echo ${f:-"empty"} ;;
+ esac
+}
+# "fail" = ifconfig "down" (cant read), "gone" = no iface,
+# 1 = ifconfig "up" & is "plugged", 0 = ifconfig "up" & NOT "plugged"
+get_carrier () {
+ get_state "$1" "carrier"
+}
+# "fail" = weird (cant read), "gone" = no iface,
+# "unknown" = ifconfig "up" & is "plugged", "down" = something else
+get_operstate () {
+ get_state "$1" "operstate"
+}
+# "fail" = weird (cant read), "gone" = no iface,
+# "1" = ifconfig "up" (flag IFF_UP=1), "0" = ifconfig "down" (flag IFF_UP=0)
+get_admin_up () {
+ local f=$(get_state "$1" "flags")
+ case "$f" in
+  *[13579bdfBDF]) echo "1" ;;
+  *[02468aceACE]) echo "0" ;;
+  *)    echo ${f:-"empty"} ;;
+ esac
+}
+
+kill_udhcpc () {
+ local iface=$1
+ for proc_path in /proc/[0-9]*/cmdline ; do
+  [ -e "$proc_path" ] || continue
+  cmdline=$(cat "$proc_path" 2>/dev/null) || continue
+  pid=${proc_path#/proc/}
+  pid=${pid%/cmdline}
+  case "$cmdline" in
+   *udhcpc*-i*"$iface"*) kill -9 $pid 2>/dev/null ;;
+  esac
+ done
+ rm -f "$FLGDIR/$iface.udhcpc"
+}
+
+# procs/files of "gone" ifaces
+kill_orphans () {
+ local iface=""
+ for flg_file in "$FLGDIR"/*.* ; do
+  [ -f "$flg_file" ] || continue
+  iface=${flg_file##*/}
+  iface=${iface%%.*}
+  [ -d "$SCNDIR/$iface" ] || rm -f "$FLGDIR/$iface".*
+ done
+ for proc_path in /proc/[0-9]*/cmdline ; do
+  [ -e "$proc_path" ] || continue
+  cmdline=$(cat "$proc_path" 2>/dev/null) || continue
+  pid=${proc_path#/proc/}
+  pid=${pid%/cmdline}
+  iface=""
+  case "$cmdline" in
+   *udhcpc*-i*|*wpa_supplicant*-i*) iface=${cmdline#*-i} ; iface=${iface%%-*} ;;
+   *) continue ;;
+  esac
+  if [ -n "$iface" ] && [ ! -d "$SCNDIR/$iface" ] ; then
+   kill -9 $pid 2>/dev/null
+   case "$cmdline" in
+    *wpa_supplicant*-i*) rm -f "/var/run/wpa_supplicant/$iface" 2>/dev/null ;;
+   esac
+  fi
+ done
+}
+
+# udhcpc/IP/routes
+clean_iface () {
+ local iface=$1 carrier="$(get_carrier "$iface")"
+ [ -d "$SCNDIR/$iface" ] || return 1
+ kill_udhcpc "$iface"
+ > "$FLGDIR/$iface.cleaning"
+ ifconfig "$iface" 0.0.0.0 2>/dev/null # could UP the iface, so:
+ [ "$carrier" = "fail" ] && ifconfig "$iface" down 2>/dev/null # force DOWN if was DOWN
+ route -n 2>/dev/null | while read destination gateway netmask flags metric ref use iface_name ; do
+  [ "$iface_name" = "$iface" ] || continue
+  route del -net "$destination" netmask "$netmask" dev "$iface" 2>/dev/null
+ done
+ rm -f "$FLGDIR/$iface.cleaning"
+}
+
+clean_down_ifaces () {
+ for iface_path in $SCNDIR/eth* $SCNDIR/wlan* ; do
+  [ -e "$iface_path" ] || continue
+  iface=${iface_path##*/}
+  [ -f "$FLGDIR/$iface.handled" ] || continue
+  [ "$(get_operstate "$iface")" = "down" ] || continue
+  [ -f "$FLGDIR/$iface.cleaned" ] && continue
+  clean_iface "$iface"
+  > "$FLGDIR/$iface.cleaned"
+ done
+}
+
+config_all_ifaces () {
+ for iface_path in $SCNDIR/eth* $SCNDIR/wlan* ; do
+  [ -e "$iface_path" ] || continue
+  iface=${iface_path##*/}
+  [ -f "$FLGDIR/$iface.handled" ] || continue
+  [ -f "$FLGDIR/$iface.cleaning" ] && continue
+  [ "$(get_admin_up "$iface")" = "1" ] || continue
+  case "$iface" in
+   wlan*)
+    if [ ! -f "$FLGDIR/$iface.wpa" ] && [ -f "$WSCONF" ] ; then
+     wpa_supplicant -B -i "$iface" -c "$WSCONF" 2>/dev/null
+     > "$FLGDIR/$iface.wpa"
+    fi ;;
+  esac
+  [ "$(get_carrier "$iface")" = "1" ] || continue
+  rm -f "$FLGDIR/$iface.cleaned"
+  if [ ! -f "$FLGDIR/$iface.udhcpc" ] ; then
+   udhcpc -i "$iface" -s /etc/udhcpc.sh -b >/dev/null 2>&1 &
+   > "$FLGDIR/$iface.udhcpc"
+  fi
+ done
+}
+
+launch_new_ifaces () {
+ for iface_path in $SCNDIR/eth* $SCNDIR/wlan* ; do
+  [ -e "$iface_path" ] || continue
+  iface=${iface_path##*/}
+  if [ ! -f "$FLGDIR/$iface.handled" ] ; then
+   ifconfig "$iface" up 2>/dev/null
+   > "$FLGDIR/$iface.handled"
+   > "$FLGDIR/$iface.cleaned"
+   sleep 1
+  fi
+ done
+}
+
+monitor_ifaces () {
+ mkdir -p "$FLGDIR" 2>/dev/null
+ while true ; do
+  launch_new_ifaces
+  config_all_ifaces
+  clean_down_ifaces
+  kill_orphans
+  sleep 1
+ done
+}
+
+monitor_ifaces &
+
+echo "WiFi! ^_^ Run ' wpa_cli -i wlanXXX ' then:  scan , scan_results ,"
+echo "  add_network (prints N identifier) , set_network N ssid \"NAME\" ,"
+echo "  set_network N psk \"PASS\", enable_network N , save_config , quit"
+
+/usr/bin/setsid /bin/cttyhack /bin/sh

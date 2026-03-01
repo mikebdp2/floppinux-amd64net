@@ -1,0 +1,18 @@
+diff --git a/include/netlink/msg.h b/include/netlink/msg.h
+index b9c4e0e..49c494a 100644
+--- a/netlink/msg.h
++++ b/netlink/msg.h
+@@ -12,11 +12,11 @@
+ #ifndef NETLINK_MSG_H_
+ #define NETLINK_MSG_H_
+ 
+-/*struct ucred {
++struct ucred {
+        pid_t pid;
+        uid_t uid;
+        gid_t gid;
+-};*/
++};
+ 
+ #define _GNU_SOURCE
+ #include <sys/socket.h>  /* struct ucred is here in musl */

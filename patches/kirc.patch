@@ -1,0 +1,19 @@
+diff --git a/Makefile b/Makefile
+index 426d450..e088623 100644
+--- a/Makefile
++++ b/Makefile
+@@ -3,10 +3,13 @@
+ 
+ include config.mk
+ 
++CFLAGS = -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels
++LDFLAGS = -static -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--fatal-warnings -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place -no-pie
++
+ CFLAGS += -std=c99 -pedantic -Wall -Wextra
+ CFLAGS += -Wformat-security -Wwrite-strings
+ CFLAGS += -Wno-unused-parameter
+-CFLAGS += -g -Iinclude -Isrc
++CFLAGS += -Iinclude -Isrc
+ 
+ BIN = kirc
+ SRC = src

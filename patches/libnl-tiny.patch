@@ -1,0 +1,18 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b9e342f..7ab2a68 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3,6 +3,13 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
+ PROJECT(libnl-tiny C)
+ INCLUDE(GNUInstallDirs)
+ 
++set(CMAKE_SYSTEM_NAME Linux)
++set(CMAKE_SYSTEM_PROCESSOR x86_64)
++set(CMAKE_C_COMPILER /home/artix/my-floppy-distro/x86_64-linux-musl-cross/bin/x86_64-linux-musl-gcc)
++set(CMAKE_SYSROOT /home/artix/my-floppy-distro/x86_64-linux-musl-cross)
++set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -static -Os -s -ffunction-sections -fdata-sections -fno-unwind-tables -fno-asynchronous-unwind-tables -fno-stack-protector -fomit-frame-pointer -fmerge-all-constants -fno-ident -fno-math-errno -fno-unroll-loops -ffast-math -fvisibility=hidden -fno-exceptions -march=x86-64 -mtune=generic -fno-align-functions -fno-align-jumps -fno-align-loops -fno-align-labels -fno-pie -ffile-prefix-map=/home/artix/my-floppy-distro/libnl-tiny/=.")
++set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -s -Wl,--gc-sections -Wl,--strip-all -Wl,--build-id=none -Wl,-z,norelro -Wl,--hash-style=sysv -Wl,--no-eh-frame-hdr -Wl,-z,noseparate-code -Wl,--no-undefined-version -Wl,--as-needed -Wl,--sort-common -Wl,--sort-section=alignment -Wl,--compress-debug-sections=none -Wl,--warn-common -Wl,--discard-all -Wl,--discard-locals -Wl,--no-ld-generated-unwind-info -Wl,--orphan-handling=place")
++
+ INCLUDE_DIRECTORIES(include)
+ 
+ ADD_DEFINITIONS(-Wall -Werror -Wextra -Wno-unused-parameter)

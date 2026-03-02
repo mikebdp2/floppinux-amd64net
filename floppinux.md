@@ -362,7 +362,7 @@ mount --bind /mnt/data /home
 clear
 cat welcome
 cd /home
-/bin/sh
+/bin/sh -l -m
 EOF
 ```
 

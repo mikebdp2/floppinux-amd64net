@@ -1,0 +1,26 @@
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index a3700766a..7da1171b0 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1318,7 +1318,7 @@ config X86_REBOOTFIXUPS
+ 	  Say N otherwise.
+ 
+ config MICROCODE
+-	def_bool y
++	def_bool n
+ 	depends on CPU_SUP_AMD || CPU_SUP_INTEL
+ 	select CRYPTO_LIB_SHA256 if CPU_SUP_AMD
+ 
+diff --git a/net/Kconfig b/net/Kconfig
+index 1d3f757d4..1a8a0f5da 100644
+--- a/net/Kconfig
++++ b/net/Kconfig
+@@ -476,7 +476,7 @@ config NET_IEEE8021Q_HELPERS
+ 	bool
+ 
+ config NET_SELFTESTS
+-	def_tristate PHYLIB
++	def_tristate n
+ 	depends on PHYLIB && INET
+ 
+ config NET_SOCK_MSG

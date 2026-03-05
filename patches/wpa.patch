@@ -1,0 +1,90 @@
+diff --git a/wpa_supplicant/Makefile b/wpa_supplicant/Makefile
+index 743c8ac..fffcff4 100644
+--- a/wpa_supplicant/Makefile
++++ b/wpa_supplicant/Makefile
+@@ -1,14 +1,14 @@
+ BINALL=wpa_supplicant wpa_cli
+ 
+ ALL = $(BINALL)
+-ALL += systemd/wpa_supplicant.service
+-ALL += systemd/wpa_supplicant@.service
+-ALL += systemd/wpa_supplicant-nl80211@.service
+-ALL += systemd/wpa_supplicant-wired@.service
+-ALL += dbus/fi.w1.wpa_supplicant1.service
+ 
+ EXTRA_TARGETS=dynamic_eap_methods
+ 
++MUSLDIR = /home/artix/floppinux-amd64net/my-floppy-distro/x86_64-linux-musl-cross
++EXTRA_CFLAGS += --sysroot=${MUSLDIR} -I${MUSLDIR}/include -I${MUSLDIR}/usr/include
++LDFLAGS += -static -no-pie --sysroot=${MUSLDIR} -L${MUSLDIR}/lib -L${MUSLDIR}/x86_64-linux-musl/lib -L${MUSLDIR}/usr/lib64
++export PKG_CONFIG_PATH = $(MUSLDIR)/usr/lib/pkgconfig
++
+ CONFIG_FILE=.config
+ include ../src/build.rules
+ 
+@@ -41,9 +41,9 @@ LIBS_p := $(LIBS)
+ endif
+ endif
+ 
+-export LIBDIR ?= /usr/local/lib
+-export INCDIR ?= /usr/local/include
+-export BINDIR ?= /usr/local/sbin
++export LIBDIR ?= $(MUSLDIR)/usr/lib
++export INCDIR ?= $(MUSLDIR)/usr/include
++export BINDIR ?= $(MUSLDIR)/sbin
+ PKG_CONFIG ?= pkg-config
+ 
+ CFLAGS += $(EXTRA_CFLAGS)
+@@ -1321,15 +1321,15 @@ LIBS += -ltommath
+ LIBS_p += -ltommath
+ endif
+ CONFIG_INTERNAL_AES=y
+-CONFIG_INTERNAL_DES=y
++### CONFIG_INTERNAL_DES=y
+ CONFIG_INTERNAL_SHA1=y
+-CONFIG_INTERNAL_MD4=y
++### CONFIG_INTERNAL_MD4=y
+ CONFIG_INTERNAL_MD5=y
+ CONFIG_INTERNAL_SHA256=y
+-CONFIG_INTERNAL_SHA384=y
+-CONFIG_INTERNAL_SHA512=y
++### CONFIG_INTERNAL_SHA384=y
++### CONFIG_INTERNAL_SHA512=y
+ CONFIG_INTERNAL_RC4=y
+-CONFIG_INTERNAL_DH_GROUP5=y
++### CONFIG_INTERNAL_DH_GROUP5=y
+ endif
+ ifeq ($(CONFIG_CRYPTO), cryptoapi)
+ OBJS += ../src/crypto/crypto_cryptoapi.o
+@@ -2007,6 +2007,15 @@ include ../src/objs.mk
+ wpa_supplicant: $(BCHECK) $(OBJS) $(EXTRA_progs)
+ 	$(Q)$(LDO) $(LDFLAGS) -o wpa_supplicant $(OBJS) $(LIBS) $(EXTRALIBS)
+ 	@$(E) "  LD " $@
++	$(MUSLDIR)/bin/x86_64-linux-musl-strip --strip-all \
++	--remove-section=.note.gnu.build-id \
++	--remove-section=.comment \
++	--remove-section=.gnu.version \
++	--remove-section=.gnu.version_r \
++	--remove-section=.eh_frame \
++	--remove-section=.eh_frame_hdr \
++	./wpa_supplicant
++	ls -al ./wpa_supplicant
+ 
+ _OBJS_VAR := OBJS_t
+ include ../src/objs.mk
+@@ -2031,6 +2040,15 @@ include ../src/objs.mk
+ wpa_cli: $(OBJS_c)
+ 	$(Q)$(LDO) $(LDFLAGS) -o wpa_cli $(OBJS_c) $(LIBS_c)
+ 	@$(E) "  LD " $@
++	$(MUSLDIR)/bin/x86_64-linux-musl-strip --strip-all \
++	--remove-section=.note.gnu.build-id \
++	--remove-section=.comment \
++	--remove-section=.gnu.version \
++	--remove-section=.gnu.version_r \
++	--remove-section=.eh_frame \
++	--remove-section=.eh_frame_hdr \
++	./wpa_cli
++	ls -al ./wpa_cli
+ 
+ LIBCTRL += ../src/common/wpa_ctrl.o
+ LIBCTRL += ../src/utils/os_$(CONFIG_OS).o

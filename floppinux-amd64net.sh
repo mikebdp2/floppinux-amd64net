@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-#    floppinux-amd64net.sh: FLOPPINUX-AMD64NET build script, 05 Mar 2026.
+#    floppinux-amd64net.sh: FLOPPINUX-AMD64NET build script, 06 Mar 2026.
 #
 #   Produces a FLOPPINUX-AMD64NET floppy to use as a virtual floppy at the
 #    coreboot-supported AMD-no-PSP-backdoor boards that I am maintaining :
@@ -140,7 +140,8 @@ commands_check () {
        ! command_exists "strip-nondeterminism" "strip-nondeterminism" || \
        ! command_exists "sudo" "sudo" || \
        ! command_exists "syslinux" "syslinux" || \
-       ! command_exists "wget" "wget" ; then
+       ! command_exists "wget" "wget" || \
+       ! command_exists "xz" "xz" ; then
         exit 1
     fi
 }
@@ -221,16 +222,16 @@ printrd () {
     return 0
 }
 
-# Check if a git clone of '$1' has been successful.
-git_clone_check () {
-    if [ ! -d  "$1/.git/" ] ; then
+# Git clones a '$1' repository from a '$2' URL, with a '$3' branch if specified.
+git_cloner () {
+    if git clone --depth=1 ${3:+--branch $3} "$2" && [ -d "$1/.git/" ] ; then
+        return 0
+    else
         rm -rf "$1"
         printf "\n${byellow}WARNING${bend}: cannot download a ${byellow}$1${bend} repository !"
         printf "\n         Please check your Internet connection and try again.\n"
-        encontinue
+        # encontinue
         return 1
-    else
-        return 0
     fi
 }
 
@@ -314,10 +315,9 @@ linux_build_ver () {
 linux_build () {
     printgr "LINUX" "remove the old directory if it exists"
     rm -rf ./linux/
-    while [ ! -d "./linux/" ] ; do
-        printgr "LINUX" "git clone a repository"
-        git clone --depth=1 --branch v6.18.15 "https://github.com/gregkh/linux.git"
-        git_clone_check "./linux"
+    printgr "LINUX" "git clone a repository"
+    while true; do
+        git_cloner "./linux" "https://github.com/gregkh/linux.git" "v6.18.15" && break
     done
     cd ./linux/
     printgr "LINUX" "upgrade the source code to -Oz optimization level"
@@ -346,10 +346,9 @@ linux_build () {
 dropbear_build () {
     printgr "DROPBEAR" "remove the old directory if it exists"
     rm -rf ./dropbear/
-    while [ ! -d "./dropbear/" ] ; do
-        printgr "DROPBEAR" "git clone a repository"
-        git clone --depth=1 --branch DROPBEAR_2025.89 "https://github.com/mkj/dropbear.git"
-        git_clone_check "./dropbear"
+    printgr "DROPBEAR" "git clone a repository"
+    while true; do
+        git_cloner "./dropbear" "https://github.com/mkj/dropbear.git" "DROPBEAR_2025.89" && break
     done
     cd ./dropbear/
     printgr "DROPBEAR" "configure the source code"
@@ -380,10 +379,9 @@ dropbear_build () {
 libnl_build () {
     printgr "LIBNL-TINY" "remove the old directory if it exists"
     rm -rf ./libnl-tiny/
-    while [ ! -d "./libnl-tiny/" ] ; do
-        printgr "LIBNL-TINY" "git clone a repository"
-        git clone --depth=1 "https://github.com/openwrt/libnl-tiny.git"
-        git_clone_check "./libnl-tiny"
+    printgr "LIBNL-TINY" "git clone a repository"
+    while true; do
+        git_cloner "./libnl-tiny" "https://github.com/openwrt/libnl-tiny.git" && break
     done
     cd ./libnl-tiny/
     printgr "LIBNL-TINY" "patch to setup the variables"
@@ -476,10 +474,9 @@ LDFLAGS = '"$COMMON_LDFLAGS"'
 wpa_build () {
     printgr "WPA" "remove the old directory if it exists"
     rm -rf ./hostap/
-    while [ ! -d "./hostap/" ] ; do
-        printgr "WPA" "git clone a repository"
-        git clone --depth=1 --branch hostap_2_11 "https://github.com/mikebdp2/hostap.git"
-        git_clone_check "./hostap"
+    printgr "WPA" "git clone a repository"
+    while true; do
+        git_cloner "./hostap" "https://github.com/mikebdp2/hostap.git" "hostap_2_11" && break
     done
     cd ./hostap/
     printgr "WPA" "patch to fix linking with a libnl-tiny library"
@@ -502,10 +499,9 @@ wpa_build () {
 firmware_get () {
     printgr "LINUX-FIRMWARE" "remove the old directory if it exists"
     rm -rf ./linux-firmware/
-    while [ ! -d "./linux-firmware/" ] ; do
-        printgr "LINUX-FIRMWARE" "git clone a repository"
-        git clone --depth=1 "https://github.com/mikebdp2/linux-firmware.git"
-        git_clone_check "./linux-firmware"
+    printgr "LINUX-FIRMWARE" "git clone a repository"
+    while true; do
+        git_cloner "./linux-firmware" "https://github.com/mikebdp2/linux-firmware.git" && break
     done
     return 0
 }
@@ -514,10 +510,9 @@ firmware_get () {
 kirc_build () {
     printgr "KIRC" "remove the old directory if it exists"
     rm -rf ./kirc/
-    while [ ! -d "./kirc/" ] ; do
-        printgr "KIRC" "git clone a repository"
-        git clone --depth=1 --branch 1.2.2 "https://github.com/mcpcpc/kirc.git"
-        git_clone_check "./kirc"
+    printgr "KIRC" "git clone a repository"
+    while true; do
+        git_cloner "./kirc" "https://github.com/mcpcpc/kirc.git" "1.2.2" && break
     done
     cd ./kirc/
     printgr "KIRC" "patch to setup the variables"
@@ -569,10 +564,9 @@ openssl_install () {
 openssl_build () {
     printgr "OPENSSL" "remove the old directory if it exists"
     rm -rf ./openssl/
-    while [ ! -d "./openssl/" ] ; do
-        printgr "OPENSSL" "git clone a repository"
-        git clone --depth=1 --branch openssl-3.6.1 "https://github.com/openssl/openssl.git"
-        git_clone_check "./openssl"
+    printgr "OPENSSL" "git clone a repository"
+    while true; do
+        git_cloner "./openssl" "https://github.com/openssl/openssl.git" "openssl-3.6.1" && break
     done
     cd ./openssl/
     printgr "OPENSSL" "patch to eliminate the host OS system paths inside the library files"
@@ -609,10 +603,9 @@ my $cflags = "";
 links_build () {
     printgr "LINKS" "remove the old directory if it exists"
     rm -rf ./links/
-    while [ ! -d "./links/" ] ; do
-        printgr "LINKS" "git clone a repository"
-        git clone --depth=1 "https://github.com/mikebdp2/links.git"
-        git_clone_check "./links"
+    printgr "LINKS" "git clone a repository"
+    while true; do
+        git_cloner "./links" "https://github.com/mikebdp2/links.git" && break
     done
     cd ./links/
     printgr "LINKS" "configure the source code"
@@ -707,10 +700,9 @@ busybox_build_ver () {
 busybox_build () {
     printgr "BUSYBOX" "remove the old directory if it exists"
     rm -rf ./busybox/
-    while [ ! -d "./busybox/" ] ; do
-        printgr "BUSYBOX" "git clone a repository"
-        git clone --depth=1 --branch 1_37_stable "https://github.com/mikebdp2/busybox.git"
-        git_clone_check "./busybox"
+    printgr "BUSYBOX" "git clone a repository"
+    while true; do
+        git_cloner "./busybox" "https://github.com/mikebdp2/busybox.git" "1_37_stable" && break
     done
     cd ./busybox/
     printgr "BUSYBOX" "upgrade the source code to -Os optimization level (no -Oz yet)"

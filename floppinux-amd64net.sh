@@ -197,6 +197,7 @@ wgetter () {
     if [ ! -f "$1" ] ; then
         printf "\n${bred}ERROR${bend}: cannot download a ${byellow}$1${bend} file !"
         printf "\n       Please check your Internet connection and try again.\n"
+        sleep 1
         exit 1
     else
         sleep 1
@@ -225,12 +226,14 @@ printrd () {
 # Git clones a '$1' repository from a '$2' URL, with a '$3' branch if specified.
 git_cloner () {
     if git clone --depth=1 ${3:+--branch $3} "$2" && [ -d "$1/.git/" ] ; then
+        sleep 1
         return 0
     else
         rm -rf "$1"
         printf "\n${byellow}WARNING${bend}: cannot download a ${byellow}$1${bend} repository !"
         printf "\n         Please check your Internet connection and try again.\n"
         # encontinue
+        sleep 1
         return 1
     fi
 }

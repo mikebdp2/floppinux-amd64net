@@ -1,0 +1,10 @@
+84609aeeeabdd4d0babb4709cabb5ae51f11bbc634b8a0fa9b4b26640b6050dd  ./get-all-artix.sh
+866ee6d592276752d73385e0ad4e4de6460302aee66d4bbf7885c93bfce5ece7  ./kexec
+daf34c3dfa80ff27f45fc9a9bd216dce3052d0a1e16ffa590d423176b334e5f7  ./kexec.txt
+526bef639b1f37a860141b71cb6923f5b233dc50146700f27a976e2f612c72f1  ./rootfs-wirtl.cpio.lzma
+2f5f5a054ee43c68a01fa515f975557cffdea9a1d69ae0cdb55d89200c7e0336  ./vmlinuz-linux
+9f6f1d4ead8323cf33d908e00222ca3ca83d24d834afaab32f73c8893414c58e  ./vmlinuz-linux-hardened
+17d44a242def94d39eb6caab88b7b83280ad6e7ebc9a1893d8d9dcfa5a5c6860  ./vmlinuz-linux-hardened.sh
+74e6f9e062da94e6a3e800fa40d05027256f6bda7b75481f87b67665c12bf22b  ./vmlinuz-linux-hardened-s.sh
+607c741254eee8538074d2cb5f7eb15fd6b591d617128f47dfb004f765426835  ./vmlinuz-linux.sh
+3b34ede0ddb0fb5d7f06fe0c655fb67e83b30552fde0d71481a0ecc71b7891b1  ./vmlinuz-linux-s.sh

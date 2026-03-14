@@ -1,0 +1,37 @@
+diff --git a/include/netlink-local.h b/include/netlink-local.h
+index 53da8ca..52282d3 100644
+--- a/include/netlink-local.h
++++ b/include/netlink-local.h
+@@ -73,12 +73,19 @@ struct trans_list {
+ #define NL_DBG(LVL,FMT,ARG...) \
+ 	do {} while (0)
+ 
++/*
+ #define BUG()                            \
+ 	do {                                 \
+ 		fprintf(stderr, "BUG: %s:%d\n",  \
+ 			__FILE__, __LINE__);         \
+ 		assert(0);	\
+ 	} while (0)
++*/
++
++#define BUG()                            \
++	do {                                 \
++		fprintf(stderr, "BUG: LIBNL-TINY\n");  \
++	} while (0)
+ 
+ extern int __nl_read_num_str_file(const char *path,
+ 				  int (*cb)(long, const char *));
+diff --git a/nl.c b/nl.c
+index 7ab8822..05ffa4e 100644
+--- a/nl.c
++++ b/nl.c
+@@ -517,7 +517,7 @@ continue_reading:
+ 		return n;
+ 
+ 	/* make clang analyzer happy */
+-	assert(n > 0 && buf);
++	////// assert(n > 0 && buf);
+ 
+ 	NL_DBG(3, "recvmsgs(%p): Read %d bytes\n", sk, n);
+ 

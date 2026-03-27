@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 #
-#    floppinux-amd64net.sh: FLOPPINUX-AMD64NET build script, 14 Mar 2026.
+#    floppinux-amd64net.sh: FLOPPINUX-AMD64NET build script, 27 Mar 2026.
 #
 #   Produces a FLOPPINUX-AMD64NET floppy to use as a virtual floppy at the
 #    coreboot-supported AMD-no-PSP-backdoor boards that I am maintaining :
@@ -33,6 +33,25 @@ MUSL_LD="${MUSLDIR}/bin/x86_64-linux-musl-ld"
 MUSL_AR="${MUSLDIR}/bin/x86_64-linux-musl-ar"
 MUSL_AS="${MUSLDIR}/bin/x86_64-linux-musl-as"
 MUSL_RANLIB="${MUSLDIR}/bin/x86_64-linux-musl-ranlib"
+
+#
+# FLOPPY GEOMETRY SETTINGS
+#
+# Floppy size is chosen in KiloBytes (KB). Examples of the floppy geometry:
+#  1440(KB) = 1.40625MB     standard floppy (2 heads *   80 cylinders * 18 sectors per track * 512 bytes sector size)
+#  2880(KB) = 2.81250MB high-density floppy (2 heads *   80 cylinders * 36 sectors per track * 512 bytes sector size)
+#  4880(KB) =   ~4.77MB    coreboot ramdisk (2 heads *   80 cylinders * 61 sectors per track * 512 bytes sector size)
+#  4960(KB) =   ~4.85MB    coreboot ramdisk (2 heads *   80 cylinders * 62 sectors per track * 512 bytes sector size)
+#  5040(KB) =   ~4.93MB    coreboot ramdisk (2 heads *   80 cylinders * 63 sectors per track * 512 bytes sector size)
+#  5103(KB) =   ~4.99MB    coreboot ramdisk (2 heads *   81 cylinders * 63 sectors per track * 512 bytes sector size)
+#  5166(KB) =   ~5.05MB    coreboot ramdisk (2 heads *   82 cylinders * 63 sectors per track * 512 bytes sector size)
+# 64512(KB) =      63MB    coreboot ramdisk (2 heads * 1024 cylinders * 63 sectors per track * 512 bytes sector size)
+FLOPPY_SIZE_KB="2880"
+FLOPPY_MAX_SIZE_KB="64512"
+FLOPPY_HEADS="2"
+FLOPPY_CYLINDERS="80"
+FLOPPY_MAX_SECTORS_TRACK="63"
+FLOPPY_DIVISOR=$(( FLOPPY_HEADS * FLOPPY_CYLINDERS / 2 ))
 
 #
 # UPSTREAM REPOSITORY SETTINGS
@@ -181,7 +200,7 @@ mover () {
         mv "$1" "$2"
         return 0
     else
-        printf "\n${bred}ERROR${bend}: object ${byellow}$1${bend} is not found !\n"
+        printf "\n${bred}ERROR${bend}: object ${byellow}$1${bend} is not found !\n\n"
         exit 1
     fi
 }
@@ -195,14 +214,13 @@ wgetter () {
         wget "$3" "$2"
     fi
     if [ -f "$1" ] ; then
-        wgetter_file_size=$(($( wc -c < "$1" )))
-        if [ "$wgetter_file_size" -eq "0" ] ; then
+        if [ "$(wc -c < "$1")" -eq "0" ] ; then
             rm -f "$1"
         fi
     fi
     if [ ! -f "$1" ] ; then
         printf "\n${bred}ERROR${bend}: cannot download a ${byellow}$1${bend} file !"
-        printf "\n       Please check your Internet connection and try again.\n"
+        printf "\n       Please check your Internet connection and try again.\n\n"
         sleep 1
         exit 1
     else
@@ -283,7 +301,7 @@ verifier () {
             printf "^^^ this is correct, "
             return 0
         else
-            printf "${bred}^^^ ! MISMATCH for $1 ! Check sha256sum manually: sha256sum $1${bend}\n"
+            printf "${bred}^^^ ! MISMATCH for $1 ! Check sha256sum manually: sha256sum $1${bend}\n\n"
             # encontinue
             exit 1
         fi
@@ -1086,44 +1104,64 @@ EOF
     return 0
 }
 
-# Build a specific floppy version
+# Build a specific floppy version '$1' with a '$2' size in KB.
 floppinux_build () {
     if [ -z "${1:-}" ] ; then
         printf "\n${bred}ERROR${bend}: floppy version is not specified !\n"
         encontinue
         return 1
     else
-        case "$1" in
-            *"ath"*|*"pcn"*|*"rtl"*)
-                printgr "FLOPPINUX-$1" "create a floppy"
-                rm -f ./flpnx$1.img
-                dd if=/dev/zero of=./flpnx$1.img bs=1k count=2880
-                printgr "FLOPPINUX-$1" "format a floppy to FAT12 filesystem"
-                mkdosfs -n FLOPPINUX -i $EPOCH_TIME_HEX ./flpnx$1.img
-                mdir -i ./flpnx$1.img
-                printgr "FLOPPINUX-$1" "install a syslinux bootloader"
-                syslinux --install ./flpnx$1.img
-                mdir -i ./flpnx$1.img
-                printgr "FLOPPINUX-$1" "copy a Linux kernel to ./flpnx$1.img"
-                ls -alL ./bzImage-$1
-                mcopy -i "./flpnx$1.img" "./bzImage-$1" ::/bzImage
-                mdir -i ./flpnx$1.img
-                printgr "FLOPPINUX-$1" "copy a rootfs filesystem to ./flpnx$1.img"
-                ls -alL ./rootfs-$1.cpio.lzma
-                mcopy -i "./flpnx$1.img" "./rootfs-$1.cpio.lzma" ::/rfscpiol.zma
-                mdir -i ./flpnx$1.img
-                printgr "FLOPPINUX-$1" "copy a syslinux config file to ./flpnx$1.img"
-                ls -alL ./syslinux.cfg
-                mcopy -i "./flpnx$1.img" "./syslinux.cfg" ::/syslinux.cfg
-                mdir -i ./flpnx$1.img
-                printgr "FLOPPINUX-$1" "print a sha256sum of a floppy"
-                sha256sum ./flpnx$1.img
-                ;;
-            *)
-                printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} floppy version !\n\n"
-                exit 1
-                ;;
-        esac
+        if [ -z "${2:-}" ] ; then
+            printf "\n${bred}ERROR${bend}: floppy size is not specified !\n"
+            encontinue
+            return 1
+        else
+            if [ "$2" -le "$FLOPPY_MAX_SIZE_KB" ] ; then
+                case "$1" in
+                    *"ath"*|*"pcn"*|*"rtl"*)
+                        printgr "FLOPPINUX-$1" "create a floppy"
+                        rm -f ./flpnx$1.img
+                        dd if=/dev/zero of=./flpnx$1.img bs=1k count="$2"
+                        printgr "FLOPPINUX-$1" "format a floppy to FAT12 filesystem"
+                        FLOPPY_CALCULATED_SECTORS_TRACK="$(( ( $2 + FLOPPY_DIVISOR - 1 ) / FLOPPY_DIVISOR ))"
+                        if [ "$FLOPPY_CALCULATED_SECTORS_TRACK" -le "$FLOPPY_MAX_SECTORS_TRACK" ] ; then
+                            mkdosfs -g "$FLOPPY_HEADS/$FLOPPY_CALCULATED_SECTORS_TRACK" -n "FLOPPINUX" -i "$EPOCH_TIME_HEX" ./flpnx$1.img
+                        else
+                            mkdosfs -g "$FLOPPY_HEADS/$FLOPPY_MAX_SECTORS_TRACK"        -n "FLOPPINUX" -i "$EPOCH_TIME_HEX" ./flpnx$1.img
+                        fi
+                        mdir -i ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "install a syslinux bootloader"
+                        syslinux --install ./flpnx$1.img
+                        mdir -i ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "copy a Linux kernel to ./flpnx$1.img"
+                        ls -alL ./bzImage-$1
+                        mcopy -i "./flpnx$1.img" "./bzImage-$1" ::/bzImage
+                        mdir -i ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "copy a rootfs filesystem to ./flpnx$1.img"
+                        ls -alL ./rootfs-$1.cpio.lzma
+                        mcopy -i "./flpnx$1.img" "./rootfs-$1.cpio.lzma" ::/rfscpiol.zma
+                        mdir -i ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "copy a syslinux config file to ./flpnx$1.img"
+                        ls -alL ./syslinux.cfg
+                        mcopy -i "./flpnx$1.img" "./syslinux.cfg" ::/syslinux.cfg
+                        mdir -i ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "print a size of a floppy"
+                        ls -alL ./flpnx$1.img
+                        printgr "FLOPPINUX-$1" "print a sha256sum of a floppy"
+                        sha256sum ./flpnx$1.img
+                        ;;
+                    *)
+                        printf "\n${bred}ERROR${bend}: unsupported ${byellow}$1${bend} floppy version !\n"
+                        encontinue
+                        return 1
+                        ;;
+                esac
+            else
+                printf "\n${bred}ERROR${bend}: floppy size ${byellow}$2 KB${bend} exceeds ${byellow}$FLOPPY_MAX_SIZE_KB KB${bend} (FLOPPY_MAX_SIZE_KB) !\n"
+                encontinue
+                return 1
+            fi
+        fi
     fi
     return 0
 }
@@ -1171,9 +1209,9 @@ links_build
 firmware_get
 busybox_build
 syslinux_config
-floppinux_build "ath"
-floppinux_build "pcn"
-floppinux_build "rtl"
+floppinux_build "ath" "${FLOPPY_SIZE_KB}"
+floppinux_build "pcn" "${FLOPPY_SIZE_KB}"
+floppinux_build "rtl" "${FLOPPY_SIZE_KB}"
 printgr "MY-FLOPPY-DISTRO" "build completed"
 cd ./../
 

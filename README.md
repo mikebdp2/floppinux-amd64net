@@ -27,9 +27,10 @@ Just run [floppinux-amd64net.sh](https://github.com/mikebdp2/floppinux-amd64net/
 
 ## System Requirements
 
-- AMD x86_64 CPU _(you could switch to Intel with a Linux kernel config change)_
-- 512MB RAM _(it seems no physical DDR3 modules exist that are smaller than this)_
-- coreboot+SeaBIOS or an alternative way to use a 2.88MB ED Virtual Floppy disk image
+- **AMD x86_64 CPU** _(you could switch to Intel with a Linux kernel config change)_
+- **512MB RAM** _(it seems no physical DDR3 modules exist that are smaller than this)_
+- **coreboot+SeaBIOS** or an alternative way to use a `2880KB` ED Virtual Floppy disk image
+  _(custom "floppy" aka "ramdisk" size support - up to `63 MB` - has been added recently)_
 
 ## Emulation
 
@@ -39,15 +40,15 @@ Just run [floppinux-amd64net.sh](https://github.com/mikebdp2/floppinux-amd64net/
 
 ## Footprint
 
-- Floppy: 2880KiB / 2.88MiB
-- Kernel: 2205KiB _(bzImage-ath/bzImage-pcn)_ --- 2209KiB _(bzImage-rtl)_
-- Rootfs: ~470KiB _(rootfs-ath.cpio.lzma/rootfs-pcn.cpio.lzma)_ --- ~479KiB _(rootfs-rtl.cpio.lzma)_
-- Free space left _(df -B 1)_: **flpnxath.img/flpnxpcn.img - 17 KiB, flpnxrtl.img - almost 0 KiB**
+- Floppy: 2880KB / 2.81250MB
+- Kernel: 2205KB _(bzImage-ath/bzImage-pcn)_ --- 2209KB _(bzImage-rtl)_
+- Rootfs: ~470KB _(rootfs-ath.cpio.lzma/rootfs-pcn.cpio.lzma)_ --- ~479KB _(rootfs-rtl.cpio.lzma)_
+- Free space left _(df -B 1)_: **flpnxath.img/flpnxpcn.img - 17 KB, flpnxrtl.img - almost 0 KB**
 
 ## Features
 
 - Architecture changes
-  - 2.88 MB floppy image for AMD x86_64 PCs _(works fine in VirtualBox too)_, with many AMD-specific features enabled
+  - 2880 KB floppy image for AMD x86_64 PCs _(works fine in VirtualBox too)_, with many AMD-specific features enabled
   - Enabled kexec features, so after booting this floppy and running `/etc/get_repo.sh` - you can wget an advanced kernel/rootfs and "switch" to it, i.e. `./slitaz.sh`
   - Disabled Intel CPU support to save space, but you may re-enable it at the cost of something else and use this distro on your Intel
   - Disabled microcode loading: thanks to opensource coreboot BIOS I do not need this space-taking feature at my Linux kernel
@@ -394,7 +395,7 @@ Every contribution, no matter how small, is appreciated! 🙏
                       / '-------------' //
                      /   .---------.   //
                     /   / AMD64NET /  //
-                   .___/__________/__//   2880KiB
+                   .___/__________/__//   2880KB
                    '===\__________\=='   3.5"
 
 
